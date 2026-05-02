@@ -6,7 +6,7 @@ export interface QuoteState {
   shape: ShapeType;
   dimensions: {
     length1: number;
-    length2?: number; // For L and U
+    length2: number;
     depth: number;
   };
   options: {
@@ -26,70 +26,128 @@ export interface QuoteState {
   };
 }
 
-export function calculatePriceRange(state: QuoteState): { min: number; max: number } {
-  let basePrice = 0;
-  
-  switch (state.shape) {
-    case 'L':
-      basePrice = 8000;
-      break;
-    case 'U':
-      basePrice = 12000;
-      break;
-    case 'Droit':
-      basePrice = 5000;
-      break;
-    case 'Sur mesure':
-      basePrice = 15000;
-      break;
-  }
+export const SHAPE_BASE_PRICES: Record<ShapeType, number> = {
+  Droit: 5000,
+  L: 8000,
+  U: 12000,
+  'Sur mesure': 15000,
+};
 
-  let foamMultiplier = 1.0;
-  if (state.options.foam === 'Premium') foamMultiplier = 1.15;
-  if (state.options.foam === 'Haute densité') foamMultiplier = 1.25;
+export const FOAM_LABELS: Record<FoamType, string> = {
+  Standard: 'Standard',
+  Premium: 'Premium',
+  'Haute densité': 'Haute densité',
+};
 
-  let fabricMultiplier = 1.0;
-  if (state.fabric.type === 'Premium') fabricMultiplier = 1.2;
-  if (state.fabric.type === 'Luxe') fabricMultiplier = 1.4;
+export const FOAM_MULTIPLIERS: Record<FoamType, number> = {
+  Standard: 1.0,
+  Premium: 1.15,
+  'Haute densité': 1.25,
+};
 
-  let price = basePrice * foamMultiplier * fabricMultiplier;
+export const FABRIC_MULTIPLIERS: Record<FabricType, number> = {
+  Standard: 1.0,
+  Premium: 1.2,
+  Luxe: 1.4,
+};
 
-  if (state.options.cushionsCount > 4) {
-    price += (state.options.cushionsCount - 4) * 300;
-  }
+export interface PriceBreakdown {
+  base: number;
+  foamSurcharge: number;
+  fabricSurcharge: number;
+  cushionsSurcharge: number;
+  armrestsSurcharge: number;
+  woodSurcharge: number;
+  storageBoxSurcharge: number;
+  tableSurcharge: number;
+  deliverySurcharge: number;
+  total: number;
+  min: number;
+  max: number;
+}
 
-  if (state.options.armrests) price += 800;
-  if (state.options.premiumWood) price += 2000;
-  if (state.extras.storageBox) price += 1500;
-  if (state.extras.table) price += 900;
-  if (state.extras.delivery) price += 500;
+export function calculateBreakdown(state: QuoteState): PriceBreakdown {
+  const base = SHAPE_BASE_PRICES[state.shape];
+
+  const foamMultiplier = FOAM_MULTIPLIERS[state.options.foam];
+  const fabricMultiplier = FABRIC_MULTIPLIERS[state.fabric.type];
+
+  const baseAfterMaterials = base * foamMultiplier * fabricMultiplier;
+  const foamSurcharge = base * (foamMultiplier - 1) * fabricMultiplier;
+  const fabricSurcharge = base * (fabricMultiplier - 1);
+
+  const cushionsSurcharge = Math.max(0, state.options.cushionsCount - 4) * 300;
+  const armrestsSurcharge = state.options.armrests ? 800 : 0;
+  const woodSurcharge = state.options.premiumWood ? 2000 : 0;
+  const storageBoxSurcharge = state.extras.storageBox ? 1500 : 0;
+  const tableSurcharge = state.extras.table ? 900 : 0;
+  const deliverySurcharge = state.extras.delivery ? 500 : 0;
+
+  const total =
+    baseAfterMaterials +
+    cushionsSurcharge +
+    armrestsSurcharge +
+    woodSurcharge +
+    storageBoxSurcharge +
+    tableSurcharge +
+    deliverySurcharge;
 
   return {
-    min: Math.round(price * 0.9),
-    max: Math.round(price * 1.1)
+    base,
+    foamSurcharge: Math.round(foamSurcharge),
+    fabricSurcharge: Math.round(fabricSurcharge),
+    cushionsSurcharge,
+    armrestsSurcharge,
+    woodSurcharge,
+    storageBoxSurcharge,
+    tableSurcharge,
+    deliverySurcharge,
+    total: Math.round(total),
+    min: Math.round(total * 0.9),
+    max: Math.round(total * 1.1),
   };
 }
 
-export function generateWhatsAppMessage(state: QuoteState, name: string, city: string): string {
-  const { min, max } = calculatePriceRange(state);
-  
-  const text = `Bonjour, je suis ${name} de ${city}. Je souhaite obtenir un devis pour un salon marocain sur mesure.
+export function calculatePriceRange(state: QuoteState): { min: number; max: number } {
+  const { min, max } = calculateBreakdown(state);
+  return { min, max };
+}
 
-Détails de ma configuration :
-- Forme : ${state.shape}
-- Dimensions : L1=${state.dimensions.length1}cm ${state.dimensions.length2 ? `, L2=${state.dimensions.length2}cm` : ''}, Profondeur=${state.dimensions.depth}cm
-- Mousse : ${state.options.foam}
-- Coussins : ${state.options.cushionsCount}
-- Accoudoirs : ${state.options.armrests ? 'Oui' : 'Non'}
-- Bois premium : ${state.options.premiumWood ? 'Oui' : 'Non'}
-- Tissu : ${state.fabric.type} (Couleur: ${state.fabric.color})
-- Coffre : ${state.extras.storageBox ? 'Oui' : 'Non'}
-- Table : ${state.extras.table ? 'Oui' : 'Non'}
-- Livraison : ${state.extras.delivery ? 'Oui' : 'Non'}
+export function fmt(n: number): string {
+  return n.toLocaleString('fr-MA') + ' MAD';
+}
 
-Estimation indicative : ${min} - ${max} MAD
+export function generateWhatsAppMessage(
+  state: QuoteState,
+  name: string,
+  phone: string,
+  city: string
+): string {
+  const { min, max } = calculateBreakdown(state);
+  const needsLength2 = state.shape === 'L' || state.shape === 'U';
 
-Pouvez-vous me recontacter pour finaliser ce devis ?`;
+  const lines = [
+    `Bonjour, je suis *${name}* de *${city}* (${phone}).`,
+    `Je souhaite un devis pour un salon marocain sur mesure.`,
+    ``,
+    `*Configuration :*`,
+    `• Forme : ${state.shape}`,
+    `• Longueur principale : ${state.dimensions.length1} cm`,
+    ...(needsLength2 ? [`• Longueur secondaire : ${state.dimensions.length2} cm`] : []),
+    `• Profondeur d'assise : ${state.dimensions.depth} cm`,
+    `• Mousse : ${state.options.foam}`,
+    `• Coussins : ${state.options.cushionsCount}`,
+    `• Accoudoirs : ${state.options.armrests ? 'Oui' : 'Non'}`,
+    `• Boiserie premium : ${state.options.premiumWood ? 'Oui' : 'Non'}`,
+    `• Tissu : ${state.fabric.type}${state.fabric.color ? ` — ${state.fabric.color}` : ''}`,
+    `• Coffre de rangement : ${state.extras.storageBox ? 'Oui' : 'Non'}`,
+    `• Table centrale : ${state.extras.table ? 'Oui' : 'Non'}`,
+    `• Livraison & installation : ${state.extras.delivery ? 'Oui' : 'Non'}`,
+    ``,
+    `*Estimation : ${min.toLocaleString()} – ${max.toLocaleString()} MAD*`,
+    ``,
+    `Merci de me recontacter pour finaliser ce devis.`,
+  ];
 
-  return encodeURIComponent(text);
+  return encodeURIComponent(lines.join('\n'));
 }

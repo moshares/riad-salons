@@ -1,324 +1,717 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { QuoteState, ShapeType, calculatePriceRange, generateWhatsAppMessage } from "@/lib/pricing";
+import {
+  QuoteState,
+  ShapeType,
+  FoamType,
+  FabricType,
+  calculateBreakdown,
+  generateWhatsAppMessage,
+  fmt,
+  SHAPE_BASE_PRICES,
+} from "@/lib/pricing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { ChevronRight, ChevronLeft, Check, Send } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronLeft,
+  Send,
+  CheckCircle2,
+  Info,
+} from "lucide-react";
 
-const STEPS = 6;
+const TOTAL_STEPS = 6;
+
+const DEFAULT_STATE: QuoteState = {
+  shape: "L",
+  dimensions: { length1: 300, length2: 200, depth: 70 },
+  options: { foam: "Premium", cushionsCount: 6, armrests: true, premiumWood: false },
+  fabric: { type: "Standard", color: "" },
+  extras: { storageBox: false, table: false, delivery: true },
+};
+
+// ─── Shape SVGs ───────────────────────────────────────────────────────────────
+
+function ShapeIcon({ shape, selected }: { shape: ShapeType; selected: boolean }) {
+  const c = selected ? "var(--color-primary, #b45309)" : "#9ca3af";
+  const stroke = 2.5;
+  switch (shape) {
+    case "Droit":
+      return (
+        <svg viewBox="0 0 60 60" className="w-14 h-14">
+          <rect x="8" y="22" width="44" height="16" rx="2" fill="none" stroke={c} strokeWidth={stroke} />
+        </svg>
+      );
+    case "L":
+      return (
+        <svg viewBox="0 0 60 60" className="w-14 h-14">
+          <polyline points="10,10 10,50 50,50" fill="none" stroke={c} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+          <polyline points="10,10 22,10 22,38 50,38 50,50" fill="none" stroke={c} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "U":
+      return (
+        <svg viewBox="0 0 60 60" className="w-14 h-14">
+          <polyline points="8,10 8,50 52,50 52,10" fill="none" stroke={c} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+          <polyline points="8,10 20,10 20,38 40,38 40,10 52,10" fill="none" stroke={c} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "Sur mesure":
+      return (
+        <svg viewBox="0 0 60 60" className="w-14 h-14">
+          <path d="M10 40 L10 20 L25 10 L50 10 L50 40 L35 50 L10 40Z" fill="none" stroke={c} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+  }
+}
+
+// ─── Color Swatches ───────────────────────────────────────────────────────────
+
+const COLOR_OPTIONS = [
+  { label: "Beige", hex: "#e8dcc8" },
+  { label: "Blanc Cassé", hex: "#f5f0e8" },
+  { label: "Gris Perle", hex: "#c8c5bf" },
+  { label: "Terracotta", hex: "#c17a5a" },
+  { label: "Vert Sauge", hex: "#8a9e85" },
+  { label: "Bordeaux", hex: "#7a2d3a" },
+  { label: "Bleu Nuit", hex: "#2d3a5a" },
+  { label: "Camel", hex: "#c4955a" },
+  { label: "Anthracite", hex: "#4a4a4a" },
+];
+
+// ─── Live Price Strip ─────────────────────────────────────────────────────────
+
+function LivePriceStrip({ state, step }: { state: QuoteState; step: number }) {
+  const { min, max } = useMemo(() => calculateBreakdown(state), [state]);
+  if (step < 2) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center justify-between bg-amber-50 border border-amber-200 px-4 py-2.5 mb-6 rounded-sm"
+    >
+      <span className="text-xs uppercase tracking-widest text-amber-700 font-medium">Estimation en cours</span>
+      <span className="text-base font-bold text-amber-900">
+        {min.toLocaleString()} – {max.toLocaleString()} MAD
+      </span>
+    </motion.div>
+  );
+}
+
+// ─── Step indicator ───────────────────────────────────────────────────────────
+
+const STEP_LABELS = ["Forme", "Dimensions", "Confort", "Tissu", "Options", "Devis"];
+
+function StepBar({ step }: { step: number }) {
+  return (
+    <div className="mb-8">
+      <div className="flex gap-1 mb-3">
+        {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+          <div
+            key={i}
+            className="flex-1 h-1 rounded-full transition-all duration-500"
+            style={{ background: i < step ? "var(--color-primary, #b45309)" : "#e5e7eb" }}
+          />
+        ))}
+      </div>
+      <div className="flex justify-between text-[10px] uppercase tracking-widest text-muted-foreground">
+        {STEP_LABELS.map((l, i) => (
+          <span
+            key={i}
+            className="transition-colors duration-300"
+            style={{ color: i === step - 1 ? "var(--color-primary, #b45309)" : undefined, fontWeight: i === step - 1 ? 600 : 400 }}
+          >
+            {l}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Reusable option card ─────────────────────────────────────────────────────
+
+function OptionCard({
+  selected,
+  onClick,
+  title,
+  subtitle,
+  badge,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  title: string;
+  subtitle?: string;
+  badge?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative w-full text-left p-4 border-2 transition-all duration-200 rounded-sm cursor-pointer ${
+        selected
+          ? "border-primary bg-primary/5"
+          : "border-border hover:border-primary/40 bg-background"
+      }`}
+    >
+      {selected && (
+        <CheckCircle2
+          size={16}
+          className="absolute top-3 right-3 text-primary"
+        />
+      )}
+      {badge && (
+        <span className="absolute top-3 right-3 text-[10px] uppercase tracking-wider bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+          {badge}
+        </span>
+      )}
+      <span className={`block font-semibold text-sm ${selected ? "text-primary" : "text-foreground"}`}>
+        {title}
+      </span>
+      {subtitle && (
+        <span className="block text-xs text-muted-foreground mt-0.5">{subtitle}</span>
+      )}
+    </button>
+  );
+}
+
+// ─── Extra toggle row ─────────────────────────────────────────────────────────
+
+function ExtraRow({
+  label,
+  sublabel,
+  price,
+  checked,
+  onChange,
+}: {
+  label: string;
+  sublabel?: string;
+  price: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div
+      className={`flex items-center justify-between p-4 border rounded-sm transition-colors ${
+        checked ? "border-primary/40 bg-primary/5" : "border-border"
+      }`}
+    >
+      <div className="flex-1 min-w-0">
+        <span className="block text-sm font-medium">{label}</span>
+        {sublabel && <span className="block text-xs text-muted-foreground">{sublabel}</span>}
+        <span className="block text-xs font-semibold text-primary mt-0.5">{price}</span>
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} className="ml-4 shrink-0" />
+    </div>
+  );
+}
+
+// ─── Step content components ──────────────────────────────────────────────────
+
+function StepShape({ state, setState }: { state: QuoteState; setState: (s: QuoteState) => void }) {
+  const shapes: ShapeType[] = ["Droit", "L", "U", "Sur mesure"];
+  const subtitles: Record<ShapeType, string> = {
+    Droit: `À partir de ${SHAPE_BASE_PRICES.Droit.toLocaleString()} MAD`,
+    L: `À partir de ${SHAPE_BASE_PRICES.L.toLocaleString()} MAD`,
+    U: `À partir de ${SHAPE_BASE_PRICES.U.toLocaleString()} MAD`,
+    "Sur mesure": `À partir de ${SHAPE_BASE_PRICES["Sur mesure"].toLocaleString()} MAD`,
+  };
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-xl font-serif font-semibold mb-1">Forme du salon</h3>
+        <p className="text-sm text-muted-foreground">Choisissez la configuration qui correspond à votre espace.</p>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {shapes.map((shape) => (
+          <button
+            key={shape}
+            type="button"
+            onClick={() => setState({ ...state, shape })}
+            className={`flex flex-col items-center justify-center gap-2 p-5 border-2 rounded-sm transition-all duration-200 cursor-pointer ${
+              state.shape === shape
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-primary/40"
+            }`}
+          >
+            <ShapeIcon shape={shape} selected={state.shape === shape} />
+            <span className={`font-semibold text-sm ${state.shape === shape ? "text-primary" : "text-foreground"}`}>
+              {shape}
+            </span>
+            <span className="text-[11px] text-muted-foreground">{subtitles[shape]}</span>
+            {state.shape === shape && (
+              <CheckCircle2 size={14} className="text-primary" />
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DimensionInput({
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1">
+        <Label className="text-sm font-medium">{label}</Label>
+        {hint && (
+          <span className="text-xs text-muted-foreground">— {hint}</span>
+        )}
+      </div>
+      <div className="relative">
+        <Input
+          type="number"
+          min={50}
+          max={1000}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="pr-12 rounded-sm"
+        />
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">cm</span>
+      </div>
+    </div>
+  );
+}
+
+function StepDimensions({ state, setState }: { state: QuoteState; setState: (s: QuoteState) => void }) {
+  const needsTwo = state.shape === "L" || state.shape === "U";
+  const diagrams: Record<ShapeType, string> = {
+    Droit: "Longueur totale × Profondeur",
+    L: "Deux longueurs se rejoignent en angle droit",
+    U: "Trois pans formant un U",
+    "Sur mesure": "Nos artisans s'adaptent à votre espace",
+  };
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h3 className="text-xl font-serif font-semibold mb-1">Dimensions</h3>
+        <div className="flex items-start gap-1.5 text-xs text-muted-foreground bg-muted/40 px-3 py-2 rounded-sm">
+          <Info size={13} className="mt-0.5 shrink-0" />
+          <span>{diagrams[state.shape]}</span>
+        </div>
+      </div>
+
+      <DimensionInput
+        label={needsTwo ? "Longueur principale" : "Longueur totale"}
+        hint={needsTwo ? "pan le plus long" : undefined}
+        value={state.dimensions.length1}
+        onChange={(v) => setState({ ...state, dimensions: { ...state.dimensions, length1: v } })}
+      />
+
+      {needsTwo && (
+        <DimensionInput
+          label="Longueur secondaire"
+          hint={state.shape === "U" ? "pan en retour" : "pan perpendiculaire"}
+          value={state.dimensions.length2}
+          onChange={(v) => setState({ ...state, dimensions: { ...state.dimensions, length2: v } })}
+        />
+      )}
+
+      <DimensionInput
+        label="Profondeur d'assise"
+        hint="largeur du coussin de siège"
+        value={state.dimensions.depth}
+        onChange={(v) => setState({ ...state, dimensions: { ...state.dimensions, depth: v } })}
+      />
+    </div>
+  );
+}
+
+function StepComfort({ state, setState }: { state: QuoteState; setState: (s: QuoteState) => void }) {
+  const foams: { value: FoamType; title: string; subtitle: string; badge?: string }[] = [
+    { value: "Standard", title: "Standard", subtitle: "Confort quotidien, densité 25 kg/m³" },
+    { value: "Premium", title: "Premium", subtitle: "Meilleure durabilité, densité 35 kg/m³", badge: "+15%" },
+    { value: "Haute densité", title: "Haute densité", subtitle: "Haut de gamme, densité 45 kg/m³", badge: "+25%" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-xl font-serif font-semibold mb-1">Confort & Structure</h3>
+        <p className="text-sm text-muted-foreground">La qualité de la mousse détermine le confort sur le long terme.</p>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs uppercase tracking-widest text-muted-foreground">Qualité de mousse</Label>
+        <div className="space-y-2">
+          {foams.map((f) => (
+            <OptionCard
+              key={f.value}
+              selected={state.options.foam === f.value}
+              onClick={() => setState({ ...state, options: { ...state.options, foam: f.value } })}
+              title={f.title}
+              subtitle={f.subtitle}
+              badge={f.badge}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3 pt-2 border-t">
+        <div className="flex justify-between items-center">
+          <Label className="text-xs uppercase tracking-widest text-muted-foreground">Nombre de coussins</Label>
+          <span className="text-xl font-bold text-primary">{state.options.cushionsCount}</span>
+        </div>
+        <Slider
+          value={[state.options.cushionsCount]}
+          min={2}
+          max={12}
+          step={1}
+          onValueChange={(v) => setState({ ...state, options: { ...state.options, cushionsCount: v[0] } })}
+        />
+        <div className="flex justify-between text-[10px] text-muted-foreground">
+          <span>2</span>
+          <span className="text-[10px] text-amber-700">+300 MAD / coussin au-delà de 4</span>
+          <span>12</span>
+        </div>
+      </div>
+
+      <div className="space-y-3 pt-2 border-t">
+        <Label className="text-xs uppercase tracking-widest text-muted-foreground">Finitions</Label>
+        <div className="space-y-2">
+          <div className={`flex items-center justify-between p-4 border-2 rounded-sm transition-colors ${state.options.armrests ? "border-primary/40 bg-primary/5" : "border-border"}`}>
+            <div>
+              <span className="block text-sm font-medium">Accoudoirs</span>
+              <span className="text-xs text-primary font-semibold">+800 MAD</span>
+            </div>
+            <Switch
+              checked={state.options.armrests}
+              onCheckedChange={(c) => setState({ ...state, options: { ...state.options, armrests: c } })}
+            />
+          </div>
+          <div className={`flex items-center justify-between p-4 border-2 rounded-sm transition-colors ${state.options.premiumWood ? "border-primary/40 bg-primary/5" : "border-border"}`}>
+            <div>
+              <span className="block text-sm font-medium">Boiserie haute qualité</span>
+              <span className="text-xs text-muted-foreground">Bois massif taillé à la main</span>
+              <span className="block text-xs text-primary font-semibold">+2 000 MAD</span>
+            </div>
+            <Switch
+              checked={state.options.premiumWood}
+              onCheckedChange={(c) => setState({ ...state, options: { ...state.options, premiumWood: c } })}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepFabric({ state, setState }: { state: QuoteState; setState: (s: QuoteState) => void }) {
+  const fabrics: { value: FabricType; title: string; subtitle: string; badge?: string }[] = [
+    { value: "Standard", title: "Tissu Standard", subtitle: "Résistant et facile d'entretien" },
+    { value: "Premium", title: "Tissu Premium", subtitle: "Texture raffinée, longue durabilité", badge: "+20%" },
+    { value: "Luxe", title: "Velours Luxe", subtitle: "Velours marocain, toucher soyeux", badge: "+40%" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-xl font-serif font-semibold mb-1">Choix du tissu</h3>
+        <p className="text-sm text-muted-foreground">Le tissu façonne l'ambiance de votre salon.</p>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs uppercase tracking-widest text-muted-foreground">Gamme</Label>
+        <div className="space-y-2">
+          {fabrics.map((f) => (
+            <OptionCard
+              key={f.value}
+              selected={state.fabric.type === f.value}
+              onClick={() => setState({ ...state, fabric: { ...state.fabric, type: f.value } })}
+              title={f.title}
+              subtitle={f.subtitle}
+              badge={f.badge}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3 pt-2 border-t">
+        <Label className="text-xs uppercase tracking-widest text-muted-foreground">Couleur souhaitée</Label>
+        <div className="flex flex-wrap gap-2">
+          {COLOR_OPTIONS.map((c) => (
+            <button
+              key={c.label}
+              type="button"
+              title={c.label}
+              onClick={() => setState({ ...state, fabric: { ...state.fabric, color: c.label } })}
+              className={`w-9 h-9 rounded-full border-2 transition-all ${
+                state.fabric.color === c.label
+                  ? "border-foreground scale-110 shadow-md"
+                  : "border-transparent hover:border-muted-foreground"
+              }`}
+              style={{ background: c.hex }}
+            />
+          ))}
+        </div>
+        {state.fabric.color && (
+          <p className="text-xs text-muted-foreground">
+            Couleur sélectionnée : <strong className="text-foreground">{state.fabric.color}</strong>
+          </p>
+        )}
+        <Input
+          placeholder="Autre couleur ou précision…"
+          value={COLOR_OPTIONS.some((c) => c.label === state.fabric.color) ? "" : state.fabric.color}
+          onChange={(e) => setState({ ...state, fabric: { ...state.fabric, color: e.target.value } })}
+          className="rounded-sm text-sm"
+        />
+      </div>
+    </div>
+  );
+}
+
+function StepExtras({ state, setState }: { state: QuoteState; setState: (s: QuoteState) => void }) {
+  return (
+    <div className="space-y-5">
+      <div>
+        <h3 className="text-xl font-serif font-semibold mb-1">Options supplémentaires</h3>
+        <p className="text-sm text-muted-foreground">Personnalisez les derniers détails de votre salon.</p>
+      </div>
+      <div className="space-y-3">
+        <ExtraRow
+          label="Coffre de rangement"
+          sublabel="Intégré sous l'assise, charnières silencieuses"
+          price="+1 500 MAD"
+          checked={state.extras.storageBox}
+          onChange={(c) => setState({ ...state, extras: { ...state.extras, storageBox: c } })}
+        />
+        <ExtraRow
+          label="Table centrale assortie"
+          sublabel="Même finition bois, plateau assorti"
+          price="+900 MAD"
+          checked={state.extras.table}
+          onChange={(c) => setState({ ...state, extras: { ...state.extras, table: c } })}
+        />
+        <ExtraRow
+          label="Livraison & Installation"
+          sublabel="Livraison à domicile et montage par nos équipes"
+          price="+500 MAD"
+          checked={state.extras.delivery}
+          onChange={(c) => setState({ ...state, extras: { ...state.extras, delivery: c } })}
+        />
+      </div>
+    </div>
+  );
+}
+
+function StepResult({ state }: { state: QuoteState }) {
+  const [lead, setLead] = useState({ name: "", phone: "", city: "" });
+  const [sent, setSent] = useState(false);
+  const bd = useMemo(() => calculateBreakdown(state), [state]);
+
+  const lineItems: { label: string; value: number }[] = [
+    { label: `Base — salon ${state.shape}`, value: bd.base },
+    ...(bd.foamSurcharge ? [{ label: `Mousse ${state.options.foam}`, value: bd.foamSurcharge }] : []),
+    ...(bd.fabricSurcharge ? [{ label: `Tissu ${state.fabric.type}`, value: bd.fabricSurcharge }] : []),
+    ...(bd.cushionsSurcharge ? [{ label: `Coussins supplémentaires (×${Math.max(0, state.options.cushionsCount - 4)})`, value: bd.cushionsSurcharge }] : []),
+    ...(bd.armrestsSurcharge ? [{ label: "Accoudoirs", value: bd.armrestsSurcharge }] : []),
+    ...(bd.woodSurcharge ? [{ label: "Boiserie haute qualité", value: bd.woodSurcharge }] : []),
+    ...(bd.storageBoxSurcharge ? [{ label: "Coffre de rangement", value: bd.storageBoxSurcharge }] : []),
+    ...(bd.tableSurcharge ? [{ label: "Table centrale", value: bd.tableSurcharge }] : []),
+    ...(bd.deliverySurcharge ? [{ label: "Livraison & installation", value: bd.deliverySurcharge }] : []),
+  ];
+
+  const isValid = lead.name.trim() && lead.phone.trim() && lead.city.trim();
+
+  const handleSend = () => {
+    if (!isValid) return;
+    const msg = generateWhatsAppMessage(state, lead.name, lead.phone, lead.city);
+    window.open(`https://wa.me/212600000000?text=${msg}`, "_blank");
+    setSent(true);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-xl font-serif font-semibold mb-1">Votre devis estimatif</h3>
+        <p className="text-sm text-muted-foreground">Estimation indicative avant devis définitif.</p>
+      </div>
+
+      {/* Price hero */}
+      <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-sm p-5 text-center">
+        <span className="text-xs uppercase tracking-widest text-amber-700 block mb-1">Budget estimé</span>
+        <div className="text-3xl font-bold text-amber-900">
+          {bd.min.toLocaleString()} – {bd.max.toLocaleString()} <span className="text-xl">MAD</span>
+        </div>
+        <span className="text-[11px] text-amber-700 mt-1 block">±10% selon finitions définitives</span>
+      </div>
+
+      {/* Itemized breakdown */}
+      <div className="space-y-1">
+        <Label className="text-xs uppercase tracking-widest text-muted-foreground">Détail de l'estimation</Label>
+        <div className="border rounded-sm overflow-hidden">
+          {lineItems.map((item, i) => (
+            <div
+              key={i}
+              className={`flex justify-between text-sm px-4 py-2.5 ${i % 2 === 0 ? "bg-background" : "bg-muted/30"}`}
+            >
+              <span className="text-muted-foreground">{item.label}</span>
+              <span className="font-semibold tabular-nums">{fmt(item.value)}</span>
+            </div>
+          ))}
+          <div className="flex justify-between text-sm px-4 py-3 bg-primary/5 border-t border-primary/20">
+            <span className="font-bold">Total estimé</span>
+            <span className="font-bold text-primary tabular-nums">{fmt(bd.total)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Lead form */}
+      <div className="space-y-4 pt-2 border-t">
+        <Label className="text-xs uppercase tracking-widest text-muted-foreground">Recevoir le devis par WhatsApp</Label>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2 space-y-1.5">
+            <Label className="text-sm">Nom complet</Label>
+            <Input
+              placeholder="Votre nom"
+              value={lead.name}
+              onChange={(e) => setLead({ ...lead, name: e.target.value })}
+              className="rounded-sm"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm">Téléphone WhatsApp</Label>
+            <Input
+              placeholder="+212 6…"
+              type="tel"
+              value={lead.phone}
+              onChange={(e) => setLead({ ...lead, phone: e.target.value })}
+              className="rounded-sm"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-sm">Ville</Label>
+            <Input
+              placeholder="Casablanca…"
+              value={lead.city}
+              onChange={(e) => setLead({ ...lead, city: e.target.value })}
+              className="rounded-sm"
+            />
+          </div>
+        </div>
+
+        {sent ? (
+          <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-sm px-4 py-3 text-green-800 text-sm">
+            <CheckCircle2 size={16} className="shrink-0" />
+            Message envoyé ! Nous vous contacterons dans les plus brefs délais.
+          </div>
+        ) : (
+          <Button
+            className="w-full rounded-sm h-12 text-base gap-2 font-semibold"
+            style={{ background: "#25D366", color: "#fff" }}
+            disabled={!isValid}
+            onClick={handleSend}
+          >
+            <Send size={17} />
+            Envoyer ma demande via WhatsApp
+          </Button>
+        )}
+        {!isValid && !sent && (
+          <p className="text-[11px] text-muted-foreground text-center">
+            Remplissez votre nom, téléphone et ville pour envoyer.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function QuoteSimulator() {
   const [step, setStep] = useState(1);
-  const [state, setState] = useState<QuoteState>({
-    shape: 'L',
-    dimensions: { length1: 300, length2: 250, depth: 70 },
-    options: { foam: 'Premium', cushionsCount: 6, armrests: true, premiumWood: false },
-    fabric: { type: 'Premium', color: 'Beige' },
-    extras: { storageBox: false, table: false, delivery: true }
-  });
+  const [state, setState] = useState<QuoteState>(DEFAULT_STATE);
 
-  const [lead, setLead] = useState({ name: '', phone: '', city: '' });
+  const canAdvance = () => {
+    if (step === 2) {
+      const { length1, length2, depth } = state.dimensions;
+      const needsTwo = state.shape === "L" || state.shape === "U";
+      return length1 > 0 && depth > 0 && (!needsTwo || (length2 && length2 > 0));
+    }
+    return true;
+  };
 
-  const nextStep = () => setStep(s => Math.min(s + 1, STEPS));
-  const prevStep = () => setStep(s => Math.max(s - 1, 1));
+  const nextStep = () => {
+    if (canAdvance()) setStep((s) => Math.min(s + 1, TOTAL_STEPS));
+  };
+  const prevStep = () => setStep((s) => Math.max(s - 1, 1));
 
-  const renderStepContent = () => {
+  const renderStep = () => {
     switch (step) {
-      case 1:
-        return (
-          <div className="space-y-6">
-            <h3 className="text-2xl font-serif mb-4">1. Forme du salon</h3>
-            <div className="grid grid-cols-2 gap-4">
-              {(['L', 'U', 'Droit', 'Sur mesure'] as ShapeType[]).map((shape) => (
-                <div 
-                  key={shape}
-                  onClick={() => setState({ ...state, shape })}
-                  className={`p-6 border cursor-pointer flex flex-col items-center justify-center transition-all ${
-                    state.shape === shape 
-                      ? 'border-primary bg-primary/5 text-primary' 
-                      : 'border-border hover:border-primary/50'
-                  }`}
-                >
-                  <span className="font-medium uppercase tracking-wider">{shape}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      
-      case 2:
-        return (
-          <div className="space-y-6">
-            <h3 className="text-2xl font-serif mb-4">2. Dimensions (cm)</h3>
-            <div className="space-y-4">
-              <div>
-                <Label>Longueur 1</Label>
-                <Input 
-                  type="number" 
-                  value={state.dimensions.length1} 
-                  onChange={e => setState({ ...state, dimensions: { ...state.dimensions, length1: Number(e.target.value) } })}
-                />
-              </div>
-              {['L', 'U'].includes(state.shape) && (
-                <div>
-                  <Label>Longueur 2</Label>
-                  <Input 
-                    type="number" 
-                    value={state.dimensions.length2 || 0} 
-                    onChange={e => setState({ ...state, dimensions: { ...state.dimensions, length2: Number(e.target.value) } })}
-                  />
-                </div>
-              )}
-              <div>
-                <Label>Profondeur assise</Label>
-                <Input 
-                  type="number" 
-                  value={state.dimensions.depth} 
-                  onChange={e => setState({ ...state, dimensions: { ...state.dimensions, depth: Number(e.target.value) } })}
-                />
-              </div>
-            </div>
-          </div>
-        );
-
-      case 3:
-        return (
-          <div className="space-y-6">
-            <h3 className="text-2xl font-serif mb-4">3. Confort & Structure</h3>
-            
-            <div className="space-y-4">
-              <Label className="text-base">Type de mousse</Label>
-              <RadioGroup 
-                value={state.options.foam} 
-                onValueChange={(v: any) => setState({ ...state, options: { ...state.options, foam: v } })}
-                className="flex flex-col space-y-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Standard" id="foam-std" />
-                  <Label htmlFor="foam-std">Standard</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Premium" id="foam-pre" />
-                  <Label htmlFor="foam-pre">Premium (+15%)</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Haute densité" id="foam-hd" />
-                  <Label htmlFor="foam-hd">Haute densité (+25%)</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            <div className="space-y-4 pt-4 border-t">
-              <div className="flex justify-between">
-                <Label className="text-base">Nombre de coussins</Label>
-                <span className="font-bold text-primary">{state.options.cushionsCount}</span>
-              </div>
-              <Slider 
-                value={[state.options.cushionsCount]} 
-                min={2} max={12} step={1}
-                onValueChange={(v) => setState({ ...state, options: { ...state.options, cushionsCount: v[0] } })}
-              />
-            </div>
-
-            <div className="space-y-4 pt-4 border-t">
-              <div className="flex items-center justify-between">
-                <Label className="text-base">Accoudoirs</Label>
-                <Switch 
-                  checked={state.options.armrests} 
-                  onCheckedChange={(c) => setState({ ...state, options: { ...state.options, armrests: c } })}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label className="text-base">Boiserie Haute Qualité</Label>
-                <Switch 
-                  checked={state.options.premiumWood} 
-                  onCheckedChange={(c) => setState({ ...state, options: { ...state.options, premiumWood: c } })}
-                />
-              </div>
-            </div>
-          </div>
-        );
-
-      case 4:
-        return (
-          <div className="space-y-6">
-            <h3 className="text-2xl font-serif mb-4">4. Tissus</h3>
-            <div className="space-y-4">
-              <Label className="text-base">Gamme de tissu</Label>
-              <RadioGroup 
-                value={state.fabric.type} 
-                onValueChange={(v: any) => setState({ ...state, fabric: { ...state.fabric, type: v } })}
-                className="flex flex-col space-y-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Standard" id="fab-std" />
-                  <Label htmlFor="fab-std">Standard</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Premium" id="fab-pre" />
-                  <Label htmlFor="fab-pre">Premium (+20%)</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Luxe" id="fab-lux" />
-                  <Label htmlFor="fab-lux">Luxe / Velours (+40%)</Label>
-                </div>
-              </RadioGroup>
-            </div>
-            <div>
-              <Label>Couleur souhaitée</Label>
-              <Input 
-                value={state.fabric.color} 
-                onChange={e => setState({ ...state, fabric: { ...state.fabric, color: e.target.value } })}
-                placeholder="Ex: Beige, Vert sauge, Terracotta..."
-              />
-            </div>
-          </div>
-        );
-
-      case 5:
-        return (
-          <div className="space-y-6">
-            <h3 className="text-2xl font-serif mb-4">5. Options Supplémentaires</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-sm">
-                <div>
-                  <Label className="text-base block">Coffre de rangement</Label>
-                  <span className="text-xs text-muted-foreground">Intégré sous l'assise</span>
-                </div>
-                <Switch 
-                  checked={state.extras.storageBox} 
-                  onCheckedChange={(c) => setState({ ...state, extras: { ...state.extras, storageBox: c } })}
-                />
-              </div>
-              <div className="flex items-center justify-between p-4 border rounded-sm">
-                <div>
-                  <Label className="text-base block">Table centrale assortie</Label>
-                  <span className="text-xs text-muted-foreground">Même finition bois</span>
-                </div>
-                <Switch 
-                  checked={state.extras.table} 
-                  onCheckedChange={(c) => setState({ ...state, extras: { ...state.extras, table: c } })}
-                />
-              </div>
-              <div className="flex items-center justify-between p-4 border rounded-sm">
-                <div>
-                  <Label className="text-base block">Livraison & Installation</Label>
-                </div>
-                <Switch 
-                  checked={state.extras.delivery} 
-                  onCheckedChange={(c) => setState({ ...state, extras: { ...state.extras, delivery: c } })}
-                />
-              </div>
-            </div>
-          </div>
-        );
-
-      case 6:
-        const { min, max } = calculatePriceRange(state);
-        return (
-          <div className="space-y-6">
-            <h3 className="text-2xl font-serif mb-4">6. Votre Devis Estimatif</h3>
-            
-            <div className="bg-primary/5 p-6 border border-primary/20 text-center">
-              <span className="block text-sm uppercase tracking-wider text-primary mb-2">Budget estimé</span>
-              <div className="text-3xl md:text-4xl font-bold text-foreground">
-                {min.toLocaleString()} - {max.toLocaleString()} MAD
-              </div>
-              <span className="text-xs text-muted-foreground mt-2 block">*Prix indicatif hors finitions spéciales</span>
-            </div>
-
-            <div className="space-y-4 mt-8">
-              <h4 className="font-medium">Recevoir le devis détaillé par WhatsApp</h4>
-              <div>
-                <Label>Nom complet</Label>
-                <Input value={lead.name} onChange={e => setLead({ ...lead, name: e.target.value })} />
-              </div>
-              <div>
-                <Label>Ville</Label>
-                <Input value={lead.city} onChange={e => setLead({ ...lead, city: e.target.value })} />
-              </div>
-              <Button 
-                className="w-full bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-none h-12 text-lg gap-2 mt-4"
-                onClick={() => {
-                  const msg = generateWhatsAppMessage(state, lead.name || 'Client', lead.city || 'Maroc');
-                  window.open(`https://wa.me/212600000000?text=${msg}`, '_blank');
-                }}
-              >
-                <Send size={18} />
-                Envoyer via WhatsApp
-              </Button>
-            </div>
-          </div>
-        );
+      case 1: return <StepShape state={state} setState={setState} />;
+      case 2: return <StepDimensions state={state} setState={setState} />;
+      case 3: return <StepComfort state={state} setState={setState} />;
+      case 4: return <StepFabric state={state} setState={setState} />;
+      case 5: return <StepExtras state={state} setState={setState} />;
+      case 6: return <StepResult state={state} />;
     }
   };
 
   return (
     <section id="devis" className="py-24 bg-card">
       <div className="container mx-auto px-4 md:px-6">
-        <div className="text-center max-w-3xl mx-auto mb-12">
-          <span className="text-secondary font-medium tracking-widest uppercase mb-2 block text-sm">
-            Sur Mesure
+        {/* Header */}
+        <div className="text-center max-w-2xl mx-auto mb-12">
+          <span className="text-xs uppercase tracking-widest text-primary font-semibold block mb-3">
+            Configuration sur mesure
           </span>
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-6 font-serif">
+          <h2 className="text-3xl md:text-5xl font-serif font-bold text-foreground mb-4">
             Simulateur de Devis
           </h2>
           <p className="text-muted-foreground text-lg font-light">
-            Configurez le salon de vos rêves et obtenez une estimation immédiate.
+            Configurez votre salon étape par étape et obtenez une estimation instantanée.
           </p>
         </div>
 
-        <div className="max-w-2xl mx-auto bg-background p-6 md:p-10 shadow-xl border border-border">
-          {/* Progress Bar */}
-          <div className="mb-8">
-            <div className="flex justify-between mb-2">
-              {Array.from({ length: STEPS }).map((_, i) => (
-                <div 
-                  key={i} 
-                  className={`w-full h-1 mx-1 ${i < step ? 'bg-primary' : 'bg-muted'}`}
-                />
-              ))}
-            </div>
-            <div className="text-right text-xs text-muted-foreground uppercase tracking-wider">
-              Étape {step} / {STEPS}
-            </div>
-          </div>
+        <div className="max-w-xl mx-auto bg-background border border-border shadow-xl rounded-sm p-6 md:p-10">
+          <StepBar step={step} />
+          <LivePriceStrip state={state} step={step} />
 
-          {/* Content */}
-          <div className="min-h-[400px]">
+          <div className="min-h-[420px]">
             <AnimatePresence mode="wait">
               <motion.div
                 key={step}
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: 24 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
+                exit={{ opacity: 0, x: -24 }}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
               >
-                {renderStepContent()}
+                {renderStep()}
               </motion.div>
             </AnimatePresence>
           </div>
 
           {/* Navigation */}
           <div className="flex justify-between mt-10 pt-6 border-t border-border">
-            <Button 
-              variant="outline" 
-              onClick={prevStep} 
+            <Button
+              variant="outline"
+              onClick={prevStep}
               disabled={step === 1}
-              className="rounded-none gap-2 uppercase tracking-wider"
+              className="rounded-sm gap-2 uppercase tracking-wider text-xs h-11 px-5"
             >
-              <ChevronLeft size={16} /> Retour
+              <ChevronLeft size={15} /> Retour
             </Button>
-            {step < STEPS && (
-              <Button 
+            {step < TOTAL_STEPS && (
+              <Button
                 onClick={nextStep}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-none gap-2 uppercase tracking-wider"
+                disabled={!canAdvance()}
+                className="rounded-sm gap-2 uppercase tracking-wider text-xs h-11 px-6 bg-primary text-primary-foreground hover:bg-primary/90"
               >
-                Suivant <ChevronRight size={16} />
+                Suivant <ChevronRight size={15} />
               </Button>
             )}
           </div>
