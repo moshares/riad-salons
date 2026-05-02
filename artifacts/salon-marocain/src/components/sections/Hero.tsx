@@ -3,9 +3,9 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 
-// Moroccan-style riad bohemian salon interior
+// Luxury Moroccan salon interior with arches
 const HERO_IMG =
-  "https://images.unsplash.com/photo-1583845112203-29329902332e?w=1920&auto=format&fit=crop&q=80";
+  "https://deavita.fr/wp-content/uploads/2015/01/d%C3%A9coration-salon-marocain-luxe-Gordon-Stein-Design.jpg";
 
 const HEADLINE = ["Votre", "salon,", "une", "œuvre", "d'art", "sur", "mesure."];
 

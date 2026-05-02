@@ -36,13 +36,13 @@ const DEFAULT_STATE: QuoteState = {
 
 const SHAPE_IMAGES: Record<ShapeType, string> = {
   Droit:
-    "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=900&auto=format&fit=crop&q=80",
+    "https://www.bienvenuechezginette.com/wp-content/uploads/2023/10/decoration-salon-marocain.webp",
   L:
-    "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=900&auto=format&fit=crop&q=80",
+    "https://i.digsdigs.com/relaxing-moroccan-living-rooms-41.jpg",
   U:
-    "https://images.unsplash.com/photo-1631679706909-1844bbd07221?w=900&auto=format&fit=crop&q=80",
+    "https://deavita.fr/wp-content/uploads/2015/01/d%C3%A9coration-salon-marocain-canap%C3%A9-rideaux-Elad-Gonen.jpg",
   "Sur mesure":
-    "https://images.unsplash.com/photo-1618219944342-824e40a13285?w=900&auto=format&fit=crop&q=80",
+    "https://deavita.fr/wp-content/uploads/2015/01/d%C3%A9coration-salon-marocain-luxe-Gordon-Stein-Design.jpg",
 };
 
 // ─── Shape SVGs ───────────────────────────────────────────────────────────────

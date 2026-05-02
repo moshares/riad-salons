@@ -7,58 +7,50 @@ const projects = [
   {
     id: 1,
     category: "En L",
-    image:
-      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=900&auto=format&fit=crop&q=80",
-    title: "Salon L Velours Terracotta",
+    image: "https://i.digsdigs.com/relaxing-moroccan-living-rooms-41.jpg",
+    title: "Salon L Mosaïque",
   },
   {
     id: 2,
     category: "En U",
-    image:
-      "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=900&auto=format&fit=crop&q=80",
-    title: "Salon U Épuré Sable",
+    image: "https://deavita.fr/wp-content/uploads/2015/01/d%C3%A9coration-salon-marocain-canap%C3%A9-rideaux-Elad-Gonen.jpg",
+    title: "Salon U Velours Or",
   },
   {
     id: 3,
     category: "Traditionnel",
-    image:
-      "https://images.unsplash.com/photo-1567225557594-88d73e55f2cb?w=900&auto=format&fit=crop&q=80",
-    title: "Majesté Traditionnelle",
+    image: "https://i.digsdigs.com/relaxing-moroccan-living-rooms-19.jpg",
+    title: "Riad Ornementé Zellige",
   },
   {
     id: 4,
     category: "Moderne",
-    image:
-      "https://images.unsplash.com/photo-1493552152660-f915ab47ae9d?w=900&auto=format&fit=crop&q=80",
-    title: "Ligne Droite Moderne",
+    image: "https://www.bienvenuechezginette.com/wp-content/uploads/2023/10/decoration-salon-marocain.webp",
+    title: "Salon Épuré Ivoire",
   },
   {
     id: 5,
     category: "Traditionnel",
-    image:
-      "https://images.unsplash.com/photo-1631679706909-1844bbd07221?w=900&auto=format&fit=crop&q=80",
-    title: "Détails Boiserie",
+    image: "https://i.digsdigs.com/relaxing-moroccan-living-rooms-48.jpg",
+    title: "Banquettes Couleurs Vives",
   },
   {
     id: 6,
     category: "En U",
-    image:
-      "https://images.unsplash.com/photo-1618219944342-824e40a13285?w=900&auto=format&fit=crop&q=80",
-    title: "Salon U Riad",
+    image: "https://deavita.fr/wp-content/uploads/2015/01/d%C3%A9coration-salon-marocain-canap%C3%A9-velours-bleu-vert.jpg",
+    title: "Salon U Turquoise",
   },
   {
     id: 7,
     category: "Moderne",
-    image:
-      "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=900&auto=format&fit=crop&q=80",
-    title: "Salon L Moderne Clair",
+    image: "https://www.bienvenuechezginette.com/wp-content/uploads/2023/10/canape-moderne-salon-marocain.webp",
+    title: "Salon Moderne Sombre",
   },
   {
     id: 8,
     category: "Traditionnel",
-    image:
-      "https://images.unsplash.com/photo-1583845112203-29329902332e?w=900&auto=format&fit=crop&q=80",
-    title: "Artisanat Authentique",
+    image: "https://i.digsdigs.com/relaxing-moroccan-living-rooms-33.jpg",
+    title: "Banquettes Tissus Brodés",
   },
 ];
 
@@ -127,8 +119,8 @@ export function Gallery() {
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   loading="lazy"
                 />
-                {/* Gradient overlay — always visible on mobile, hover on desktop */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent opacity-0 group-hover:opacity-100 sm:group-hover:opacity-100 transition-opacity duration-350 flex items-end p-4 md:p-5">
+                {/* Gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-350 flex items-end p-4 md:p-5">
                   <div>
                     <span className="text-secondary text-[9px] uppercase tracking-[0.22em] mb-1 block">
                       {p.category}
