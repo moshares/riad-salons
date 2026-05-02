@@ -1,0 +1,56 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "CHyke3NotQpitBTZ6DP-2"
+uri = "file://artifacts/salon-marocain/public/images/hero.png"
+type = "image"
+title = "Luxury Moroccan salon hero"
+
+[[generated]]
+id = "YpR3PP4QzwgepIQAnwSdi"
+uri = "file://artifacts/salon-marocain/public/images/gallery-1.png"
+type = "image"
+title = "L shape Moroccan salon"
+
+[[generated]]
+id = "bXCSdpZldUFL_cEsdsDrk"
+uri = "file://artifacts/salon-marocain/public/images/gallery-2.png"
+type = "image"
+title = "U shape modern Moroccan salon"
+
+[[generated]]
+id = "iZgko4qDsNXn10LQV4O4s"
+uri = "file://artifacts/salon-marocain/public/images/gallery-3.png"
+type = "image"
+title = "Traditional Moroccan salon"
+
+[[generated]]
+id = "FQcSlsZYezuXZSAtXJapr"
+uri = "file://artifacts/salon-marocain/public/images/gallery-4.png"
+type = "image"
+title = "Modern Moroccan living room"
+
+[[generated]]
+id = "4E1jYI3ke_FTXSAtRuUrM"
+uri = "file://artifacts/salon-marocain/public/images/gallery-5.png"
+type = "image"
+title = "Custom Moroccan salon details"
+
+[[generated]]
+id = "za6aIdKvwxGfUJmisUTc6"
+uri = "file://artifacts/salon-marocain/public/images/gallery-6.png"
+type = "image"
+title = "Elegant U-shape salon"
+
+[[generated]]
+id = "J3x8geu1aCCP9XtAl5M7X"
+uri = "file://artifacts/salon-marocain/public/images/gallery-7.png"
+type = "image"
+title = "Modern L-shape salon"
+
+[[generated]]
+id = "pPXwEBi7v7T-yDkxn9lNJ"
+uri = "file://artifacts/salon-marocain/public/images/gallery-8.png"
+type = "image"
+title = "Traditional craftsmanship salon"

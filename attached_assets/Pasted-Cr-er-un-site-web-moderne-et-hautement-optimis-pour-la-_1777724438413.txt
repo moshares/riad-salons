@@ -1,0 +1,114 @@
+Créer un site web moderne et hautement optimisé pour la conversion pour une entreprise marocaine spécialisée dans les salons marocains sur mesure.
+
+🎯 Objectif principal
+
+Développer un site vitrine premium qui :
+
+Présente les services et le savoir-faire
+Renforce la crédibilité et la confiance
+Intègre un simulateur de devis interactif
+Génère des leads qualifiés (clients potentiels)
+1. Direction artistique
+Style : Élégant, minimaliste, inspiration marocaine moderne
+Couleurs : Tons neutres (beige, blanc, gris clair) avec touches marocaines subtiles
+Typographie : Premium, lisible
+UI : Fluide, aérée, animations légères
+Mobile-first
+2. Structure du site
+Page d’accueil
+Hero avec message fort (salons marocains sur mesure)
+Proposition de valeur (qualité, personnalisation, confort)
+CTA principal : “Obtenir un devis”
+Aperçu galerie
+Témoignages / éléments de confiance
+Services
+Conception de salons marocains sur mesure
+Choix de tissus et finitions
+Personnalisation du confort (mousse, coussins)
+Livraison et installation
+Rénovation (optionnel)
+Galerie
+Projets réalisés (grid moderne)
+Catégories : L, U, moderne, traditionnel
+À propos
+Histoire de l’entreprise
+Expertise et positionnement
+Contact
+Téléphone + WhatsApp
+Formulaire simple
+Google Maps intégré
+3. Simulateur de devis (élément clé)
+
+Créer un simulateur en plusieurs étapes :
+
+Étape 1 : Forme du salon
+En L
+En U
+Droit
+Sur mesure
+Étape 2 : Dimensions
+Champs dynamiques selon la forme
+Exemple :
+Longueur 1
+Longueur 2
+Profondeur
+Unité : cm
+Étape 3 : Options de structure
+Type de mousse (standard / premium / haute densité)
+Nombre de coussins
+Accoudoirs (oui/non)
+Structure bois (standard / haute qualité)
+Étape 4 : Tissu
+Standard
+Premium
+Luxe (velours, etc.)
+Option couleur
+Étape 5 : Options supplémentaires
+Coffre de rangement (oui/non)
+Table incluse (oui/non)
+Livraison & installation
+4. Logique de prix
+Calcul basé sur :
+Dimensions totales
+Qualité des matériaux
+Options sélectionnées
+Afficher :
+Fourchette de prix estimée
+(Optionnel) Détail simplifié
+5. Capture de lead
+
+Après estimation :
+
+Résumé du projet
+Formulaire :
+Nom
+Téléphone (WhatsApp prioritaire)
+Ville
+Bouton : “Envoyer ma demande”
+
+Envoyer les données via :
+
+Email OU
+WhatsApp OU
+Stockage interne
+6. Exigences techniques
+Responsive (mobile-first)
+Rapide
+Code structuré et modulaire
+Logique de prix facilement modifiable
+7. Optimisation conversion
+Bouton sticky “Devis”
+Bouton WhatsApp rapide
+Preuves sociales (photos, avis)
+Parcours utilisateur fluide
+8. Bonus (optionnel)
+Export PDF du devis
+Multilingue (FR / AR)
+Avant / après
+Résultat attendu
+
+Un site complet, prêt à l’usage, avec :
+
+Design premium
+Simulateur fonctionnel
+Système de capture de leads performant

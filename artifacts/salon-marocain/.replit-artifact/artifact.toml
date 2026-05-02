@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Salon Marocain Sur Mesure"
+version = "1.0.0"
+id = "artifacts/salon-marocain"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25704
+
+[services.development]
+run = "pnpm --filter @workspace/salon-marocain run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/salon-marocain", "run", "build" ]
+publicDir = "artifacts/salon-marocain/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25704"
+BASE_PATH = "/"
