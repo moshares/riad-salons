@@ -282,25 +282,25 @@ function StepShape({ state, setState }: { state: QuoteState; setState: (s: Quote
       </div>
 
       {/* Shape selector cards */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-2.5">
         {shapes.map((shape) => (
           <button
             key={shape}
             type="button"
             onClick={() => setState({ ...state, shape })}
-            className={`flex flex-col items-center justify-center gap-2 p-4 border-2 rounded-sm transition-all duration-200 cursor-pointer ${
+            className={`flex flex-col items-center justify-center gap-1.5 p-3 border-2 rounded-sm transition-all duration-200 cursor-pointer ${
               state.shape === shape
                 ? "border-primary bg-primary/5"
                 : "border-border hover:border-primary/40"
             }`}
           >
             <ShapeIcon shape={shape} selected={state.shape === shape} />
-            <span className={`font-semibold text-sm ${state.shape === shape ? "text-primary" : "text-foreground"}`}>
-              {shape}
+            <span className={`font-semibold text-xs text-center leading-tight ${state.shape === shape ? "text-primary" : "text-foreground"}`}>
+              {shapeLabels[shape]}
             </span>
-            <span className="text-[11px] text-muted-foreground">{subtitles[shape]}</span>
+            <span className="text-[10px] text-muted-foreground text-center leading-tight">{subtitles[shape]}</span>
             {state.shape === shape && (
-              <CheckCircle2 size={14} className="text-primary" />
+              <CheckCircle2 size={13} className="text-primary" />
             )}
           </button>
         ))}
@@ -905,7 +905,7 @@ export function QuoteSimulator() {
   const canAdvance = () => {
     if (step === 2) {
       const { length1, length2, depth } = state.dimensions;
-      const needsTwo = state.shape === "L" || state.shape === "U";
+      const needsTwo = state.shape === "L" || state.shape === "U Ouvert" || state.shape === "U Caissons";
       return length1 > 0 && depth > 0 && (!needsTwo || (length2 && length2 > 0));
     }
     return true;
