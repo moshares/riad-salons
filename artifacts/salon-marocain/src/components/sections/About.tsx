@@ -2,9 +2,9 @@ import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 
 const IMG_MAIN =
-  "https://images.unsplash.com/photo-1631679706909-1844bbd07221?w=900&auto=format&fit=crop&q=80";
+  "https://deavita.fr/wp-content/uploads/2015/01/d%C3%A9coration-salon-marocain-luxe-Gordon-Stein-Design.jpg";
 const IMG_DETAIL =
-  "https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600&auto=format&fit=crop&q=80";
+  "https://inspivie.com/wp-content/uploads/2025/10/20-Salon-marocain-avec-mur-en-zellige-et-sedari-jaune-a-motifs-pois.jpg";
 
 const stats = [
   { value: "20+", label: "Années d'expérience" },

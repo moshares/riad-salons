@@ -36,7 +36,7 @@ const DEFAULT_STATE: QuoteState = {
 
 const SHAPE_IMAGES: Record<ShapeType, string> = {
   Droit:
-    "https://www.bienvenuechezginette.com/wp-content/uploads/2023/10/decoration-salon-marocain.webp",
+    "https://inspivie.com/wp-content/uploads/2025/10/8-Salon-marocain-rustique-avec-cheminee-en-tadelakt-et-banquettes-rayees.jpg",
   L:
     "https://i.digsdigs.com/relaxing-moroccan-living-rooms-41.jpg",
   U:

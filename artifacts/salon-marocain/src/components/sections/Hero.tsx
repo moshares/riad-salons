@@ -3,9 +3,9 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 
-// Luxury Moroccan salon interior with arches
+// Rich traditional Moroccan salon with banquettes and arched doorway
 const HERO_IMG =
-  "https://deavita.fr/wp-content/uploads/2015/01/d%C3%A9coration-salon-marocain-luxe-Gordon-Stein-Design.jpg";
+  "https://cdn.shopify.com/s/files/1/0068/0283/3463/files/decoration_de_salon_marocain.jpg?v=1720701353";
 
 const HEADLINE = ["Votre", "salon,", "une", "œuvre", "d'art", "sur", "mesure."];
 

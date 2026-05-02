@@ -25,8 +25,8 @@ const projects = [
   {
     id: 4,
     category: "Moderne",
-    image: "https://www.bienvenuechezginette.com/wp-content/uploads/2023/10/decoration-salon-marocain.webp",
-    title: "Salon Épuré Ivoire",
+    image: "https://thouswell.com/wp-content/uploads/2016/07/graphic-style-moroccan-riad-1.jpg",
+    title: "Salon Épuré Moderne",
   },
   {
     id: 5,
@@ -37,14 +37,14 @@ const projects = [
   {
     id: 6,
     category: "En U",
-    image: "https://deavita.fr/wp-content/uploads/2015/01/d%C3%A9coration-salon-marocain-canap%C3%A9-velours-bleu-vert.jpg",
-    title: "Salon U Turquoise",
+    image: "https://i.digsdigs.com/relaxing-moroccan-living-rooms-39.jpg",
+    title: "Salon U Coloré",
   },
   {
     id: 7,
     category: "Moderne",
-    image: "https://www.bienvenuechezginette.com/wp-content/uploads/2023/10/canape-moderne-salon-marocain.webp",
-    title: "Salon Moderne Sombre",
+    image: "https://i.digsdigs.com/relaxing-moroccan-living-rooms-13.jpg",
+    title: "Salon Anis Tables Basses",
   },
   {
     id: 8,
