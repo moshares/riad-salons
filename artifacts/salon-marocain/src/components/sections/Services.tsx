@@ -1,86 +1,104 @@
 import { motion } from "framer-motion";
 import { PenTool, Scissors, Layers, Truck } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 
 const services = [
   {
+    num: "01",
+    icon: PenTool,
     title: "Conception sur mesure",
-    description: "Chaque espace est unique. Nous étudions vos plans pour créer un salon parfaitement adapté à vos dimensions et à l'architecture de votre intérieur.",
-    icon: PenTool
+    description:
+      "Chaque espace est unique. Nous étudions vos plans pour créer un salon parfaitement adapté à vos dimensions et à l'architecture de votre intérieur.",
   },
   {
+    num: "02",
+    icon: Scissors,
     title: "Choix de tissus & finitions",
-    description: "Accédez à une collection exclusive de velours, lins et tissus techniques, associés à des boiseries finement sculptées par nos maîtres artisans.",
-    icon: Scissors
+    description:
+      "Accédez à une collection exclusive de velours, lins et tissus techniques, associés à des boiseries finement sculptées par nos maîtres artisans.",
   },
   {
+    num: "03",
+    icon: Layers,
     title: "Personnalisation du confort",
-    description: "Choisissez la densité de votre assise. De la mousse standard à la mousse haute résilience, nous garantissons un confort qui dure dans le temps.",
-    icon: Layers
+    description:
+      "Choisissez la densité de votre assise. De la mousse standard à la mousse haute résilience, nous garantissons un confort qui dure dans le temps.",
   },
   {
+    num: "04",
+    icon: Truck,
     title: "Livraison & installation",
-    description: "Notre équipe dédiée assure la livraison et l'installation minutieuse de votre salon, garantissant un rendu impeccable dans votre espace.",
-    icon: Truck
-  }
+    description:
+      "Notre équipe dédiée assure la livraison et l'installation minutieuse de votre salon, garantissant un rendu impeccable dans votre espace.",
+  },
 ];
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.2
-    }
-  }
+const container = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.13 } },
 };
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6, ease: "easeOut" }
-  }
+const item = {
+  hidden: { opacity: 0, y: 32 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.65, ease: [0.22, 1, 0.36, 1] } },
 };
 
 export function Services() {
   return (
-    <section id="services" className="py-24 bg-background">
-      <div className="container mx-auto px-4 md:px-6">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="text-secondary font-medium tracking-widest uppercase mb-2 block text-sm">
+    <section id="services" className="py-24 md:py-32 bg-background">
+      <div className="container mx-auto px-5 md:px-8">
+        {/* Header — left-aligned editorial style */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7 }}
+          className="max-w-xl mb-16 md:mb-20"
+        >
+          <span className="text-secondary tracking-[0.28em] uppercase text-[11px] font-medium block mb-4">
             Notre Savoir-Faire
           </span>
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-6">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground leading-tight mb-5">
             L'Excellence à Chaque Étape
           </h2>
-          <p className="text-muted-foreground text-lg font-light">
-            De la première esquisse à l'installation finale, nous vous accompagnons pour 
-            donner vie au salon de vos rêves avec une attention absolue aux détails.
+          <p className="text-muted-foreground text-base md:text-lg font-light leading-relaxed">
+            De la première esquisse à l'installation finale, chaque étape est pensée pour vous
+            offrir un salon d'exception.
           </p>
-        </div>
+        </motion.div>
 
-        <motion.div 
-          variants={containerVariants}
+        {/* 2×2 grid with border dividers */}
+        <motion.div
+          variants={container}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: "-100px" }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
+          whileInView="show"
+          viewport={{ once: true, margin: "-60px" }}
+          className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-border"
         >
-          {services.map((service, index) => (
-            <motion.div key={index} variants={itemVariants}>
-              <Card className="bg-card border-none shadow-md hover:shadow-xl transition-shadow duration-300 h-full rounded-none">
-                <CardContent className="p-8 flex flex-col items-center text-center h-full">
-                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6 text-primary">
-                    <service.icon size={32} strokeWidth={1.5} />
+          {services.map((s) => (
+            <motion.div
+              key={s.num}
+              variants={item}
+              className="bg-background hover:bg-primary/[0.035] transition-colors duration-400 p-8 md:p-10 group cursor-default"
+            >
+              <div className="flex items-start gap-5">
+                {/* Big step number */}
+                <span className="text-5xl md:text-6xl font-serif font-bold text-primary/15 leading-none select-none group-hover:text-primary/30 transition-colors duration-400 shrink-0 mt-1">
+                  {s.num}
+                </span>
+                <div className="flex-1 min-w-0">
+                  {/* Icon + title row */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0 group-hover:bg-primary/18 transition-colors duration-300">
+                      <s.icon size={17} strokeWidth={1.5} />
+                    </div>
+                    <h3 className="font-bold text-foreground text-base md:text-lg leading-snug">
+                      {s.title}
+                    </h3>
                   </div>
-                  <h3 className="text-xl font-bold mb-4 text-foreground">{service.title}</h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">
-                    {service.description}
+                    {s.description}
                   </p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </motion.div>
           ))}
         </motion.div>
