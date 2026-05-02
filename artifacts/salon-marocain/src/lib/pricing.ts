@@ -1,4 +1,4 @@
-export type ShapeType = 'L' | 'U' | 'Droit' | 'Sur mesure';
+export type ShapeType = 'L' | 'U Ouvert' | 'U Caissons' | 'Droit' | 'Sur mesure';
 export type FoamType = 'Standard' | 'Premium' | 'Haute densité';
 export type FabricType = 'Standard' | 'Premium' | 'Luxe';
 
@@ -29,7 +29,8 @@ export interface QuoteState {
 export const SHAPE_BASE_PRICES: Record<ShapeType, number> = {
   Droit: 5000,
   L: 8000,
-  U: 12000,
+  'U Ouvert': 12000,
+  'U Caissons': 14500,
   'Sur mesure': 15000,
 };
 
@@ -124,14 +125,22 @@ export function generateWhatsAppMessage(
   city: string
 ): string {
   const { min, max } = calculateBreakdown(state);
-  const needsLength2 = state.shape === 'L' || state.shape === 'U';
+  const needsLength2 = state.shape === 'L' || state.shape === 'U Ouvert' || state.shape === 'U Caissons';
+
+  const shapeLabel: Record<ShapeType, string> = {
+    Droit: 'Canapé droit',
+    L: 'Angle en L',
+    'U Ouvert': 'Salon en U (coins ouverts)',
+    'U Caissons': 'Salon en U avec caissons d\'angle',
+    'Sur mesure': 'Sur mesure',
+  };
 
   const lines = [
     `Bonjour, je suis *${name}* de *${city}* (${phone}).`,
     `Je souhaite un devis pour un salon marocain sur mesure.`,
     ``,
     `*Configuration :*`,
-    `• Forme : ${state.shape}`,
+    `• Forme : ${shapeLabel[state.shape]}`,
     `• Longueur principale : ${state.dimensions.length1} cm`,
     ...(needsLength2 ? [`• Longueur secondaire : ${state.dimensions.length2} cm`] : []),
     `• Profondeur d'assise : ${state.dimensions.depth} cm`,

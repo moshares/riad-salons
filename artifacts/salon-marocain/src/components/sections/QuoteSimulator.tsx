@@ -25,7 +25,7 @@ import {
 const TOTAL_STEPS = 6;
 
 const DEFAULT_STATE: QuoteState = {
-  shape: "L",
+  shape: "U Ouvert",
   dimensions: { length1: 300, length2: 200, depth: 70 },
   options: { foam: "Premium", cushionsCount: 6, armrests: true, premiumWood: false },
   fabric: { type: "Standard", color: "" },
@@ -39,8 +39,8 @@ const SHAPE_IMAGES: Record<ShapeType, string> = {
     "https://inspivie.com/wp-content/uploads/2025/10/8-Salon-marocain-rustique-avec-cheminee-en-tadelakt-et-banquettes-rayees.jpg",
   L:
     "https://i.digsdigs.com/relaxing-moroccan-living-rooms-41.jpg",
-  U:
-    "https://deavita.fr/wp-content/uploads/2015/01/d%C3%A9coration-salon-marocain-canap%C3%A9-rideaux-Elad-Gonen.jpg",
+  "U Ouvert": "/shapes/u-ouvert.png",
+  "U Caissons": "/shapes/u-caissons.png",
   "Sur mesure":
     "https://deavita.fr/wp-content/uploads/2015/01/d%C3%A9coration-salon-marocain-luxe-Gordon-Stein-Design.jpg",
 };
@@ -64,11 +64,24 @@ function ShapeIcon({ shape, selected }: { shape: ShapeType; selected: boolean })
           <polyline points="10,10 22,10 22,38 50,38 50,50" fill="none" stroke={c} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
-    case "U":
+    case "U Ouvert":
       return (
         <svg viewBox="0 0 60 60" className="w-14 h-14">
           <polyline points="8,10 8,50 52,50 52,10" fill="none" stroke={c} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
           <polyline points="8,10 20,10 20,38 40,38 40,10 52,10" fill="none" stroke={c} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "U Caissons":
+      return (
+        <svg viewBox="0 0 60 60" className="w-14 h-14">
+          {/* Outer U shell */}
+          <polyline points="8,10 8,50 52,50 52,10" fill="none" stroke={c} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+          {/* Inner banquette arms */}
+          <polyline points="8,10 20,10 20,36 40,36 40,10 52,10" fill="none" stroke={c} strokeWidth={stroke} strokeLinecap="round" strokeLinejoin="round" />
+          {/* Left corner caisson box */}
+          <rect x="8" y="36" width="12" height="14" fill={selected ? "var(--color-primary,#b45309)" : "#e5e7eb"} fillOpacity="0.35" stroke={c} strokeWidth={1.5} />
+          {/* Right corner caisson box */}
+          <rect x="40" y="36" width="12" height="14" fill={selected ? "var(--color-primary,#b45309)" : "#e5e7eb"} fillOpacity="0.35" stroke={c} strokeWidth={1.5} />
         </svg>
       );
     case "Sur mesure":
@@ -224,17 +237,19 @@ function ExtraRow({
 // ─── Step content components ──────────────────────────────────────────────────
 
 function StepShape({ state, setState }: { state: QuoteState; setState: (s: QuoteState) => void }) {
-  const shapes: ShapeType[] = ["Droit", "L", "U", "Sur mesure"];
+  const shapes: ShapeType[] = ["Droit", "L", "U Ouvert", "U Caissons", "Sur mesure"];
   const subtitles: Record<ShapeType, string> = {
     Droit: `À partir de ${SHAPE_BASE_PRICES.Droit.toLocaleString()} MAD`,
     L: `À partir de ${SHAPE_BASE_PRICES.L.toLocaleString()} MAD`,
-    U: `À partir de ${SHAPE_BASE_PRICES.U.toLocaleString()} MAD`,
+    "U Ouvert": `À partir de ${SHAPE_BASE_PRICES["U Ouvert"].toLocaleString()} MAD`,
+    "U Caissons": `À partir de ${SHAPE_BASE_PRICES["U Caissons"].toLocaleString()} MAD`,
     "Sur mesure": `À partir de ${SHAPE_BASE_PRICES["Sur mesure"].toLocaleString()} MAD`,
   };
   const shapeLabels: Record<ShapeType, string> = {
     Droit: "Canapé droit",
     L: "Angle en L",
-    U: "Salon en U",
+    "U Ouvert": "U coins ouverts",
+    "U Caissons": "U avec caissons",
     "Sur mesure": "Sur mesure",
   };
   return (
@@ -485,8 +500,8 @@ function DimensionDiagram({
     );
   }
 
-  // ── U ───────────────────────────────────────────────────────────────────────
-  if (shape === "U") {
+  // ── U Ouvert & U Caissons ────────────────────────────────────────────────────
+  if (shape === "U Ouvert" || shape === "U Caissons") {
     const armT = 78;  // arm thickness (= depth)
     const lx = 50, ty = 38, armH = 168, botH = 52;
     const rx = lx + 220;  // right arm x start
@@ -510,6 +525,23 @@ function DimensionDiagram({
       <div className="relative w-full" style={{ aspectRatio: "4/3" }}>
         <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 w-full h-full overflow-visible">
           <polygon points={pts} fill={SHAPE_FILL} stroke={SHAPE_STROKE} strokeWidth={SSW} />
+
+          {/* Caisson boxes at the two inner corners */}
+          {shape === "U Caissons" && (
+            <>
+              <rect
+                x={lx + armT} y={ty + armH}
+                width={rx - (lx + armT)} height={botH}
+                fill="none" stroke={SHAPE_STROKE} strokeWidth={SSW - 0.5} strokeDasharray="5 3"
+              />
+              <rect x={lx} y={ty + armH} width={armT} height={botH}
+                fill="#e8d5c0" stroke={SHAPE_STROKE} strokeWidth={SSW} />
+              <rect x={rx} y={ty + armH} width={armT} height={botH}
+                fill="#e8d5c0" stroke={SHAPE_STROKE} strokeWidth={SSW} />
+              <text x={lx + armT / 2} y={ty + armH + botH / 2 + 4} textAnchor="middle" fontSize="9" fill={SHAPE_STROKE} fontWeight="600">C</text>
+              <text x={rx + armT / 2} y={ty + armH + botH / 2 + 4} textAnchor="middle" fontSize="9" fill={SHAPE_STROKE} fontWeight="600">C</text>
+            </>
+          )}
 
           {/* length1 (total width) — above */}
           <line x1={lx}          y1={ty} x2={lx}          y2={dl1y - 6} stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
@@ -536,6 +568,11 @@ function DimensionDiagram({
         {pill(lx + totalW / 2,    dl1y - 12,          "center", "bottom", <DiagramInput value={dimensions.length1} onChange={(v) => upd({ length1: v })} />)}
         {pill(dl2x + 10,          ty + armH / 2,      "left",   "center", <DiagramInput value={dimensions.length2} onChange={(v) => upd({ length2: v })} />)}
         {pill(lx + armT / 2,      ddy + 10,           "center", "top",    <DiagramInput value={dimensions.depth}   onChange={(v) => upd({ depth: v })} />)}
+        {shape === "U Caissons" && (
+          <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[10px] text-primary/70 font-medium tracking-wide">
+            C = caisson d'angle
+          </div>
+        )}
       </div>
     );
   }
