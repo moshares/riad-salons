@@ -20,7 +20,6 @@ import {
   ChevronLeft,
   Send,
   CheckCircle2,
-  Info,
 } from "lucide-react";
 
 const TOTAL_STEPS = 6;
@@ -252,81 +251,268 @@ function StepShape({ state, setState }: { state: QuoteState; setState: (s: Quote
   );
 }
 
-function DimensionInput({
-  label,
-  hint,
+// ─── Inline editable pill for diagram inputs ──────────────────────────────────
+
+function DiagramInput({
   value,
   onChange,
 }: {
-  label: string;
-  hint?: string;
   value: number;
   onChange: (v: number) => void;
 }) {
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-1">
-        <Label className="text-sm font-medium">{label}</Label>
-        {hint && (
-          <span className="text-xs text-muted-foreground">— {hint}</span>
-        )}
-      </div>
-      <div className="relative">
-        <Input
-          type="number"
-          min={50}
-          max={1000}
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="pr-12 rounded-sm"
-        />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-medium">cm</span>
-      </div>
+    <div className="bg-white border-2 border-primary shadow-md rounded-md px-2 py-1 flex items-center gap-1">
+      <input
+        type="number"
+        min={50}
+        max={1000}
+        value={value}
+        onChange={(e) => onChange(Math.max(50, Number(e.target.value)))}
+        onClick={(e) => (e.target as HTMLInputElement).select()}
+        className="w-14 text-center text-sm font-bold outline-none bg-transparent text-primary"
+      />
+      <span className="text-[11px] text-muted-foreground font-medium">cm</span>
     </div>
   );
 }
 
-function StepDimensions({ state, setState }: { state: QuoteState; setState: (s: QuoteState) => void }) {
-  const needsTwo = state.shape === "L" || state.shape === "U";
-  const diagrams: Record<ShapeType, string> = {
-    Droit: "Longueur totale × Profondeur",
-    L: "Deux longueurs se rejoignent en angle droit",
-    U: "Trois pans formant un U",
-    "Sur mesure": "Nos artisans s'adaptent à votre espace",
-  };
+// ─── SVG floor-plan diagram with overlaid inputs ──────────────────────────────
 
-  return (
-    <div className="space-y-5">
-      <div>
-        <h3 className="text-xl font-serif font-semibold mb-1">Dimensions</h3>
-        <div className="flex items-start gap-1.5 text-xs text-muted-foreground bg-muted/40 px-3 py-2 rounded-sm">
-          <Info size={13} className="mt-0.5 shrink-0" />
-          <span>{diagrams[state.shape]}</span>
+const SHAPE_FILL = "#f5ede0";
+const SHAPE_STROKE = "#b45309";
+const DIM_COLOR = "#94a3b8";
+const SSW = 1.8;  // shape stroke width
+const DSW = 1.0;  // dim line stroke width
+
+function Tick({ x1, y1, x2, y2 }: { x1: number; y1: number; x2: number; y2: number }) {
+  return <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={DIM_COLOR} strokeWidth={DSW} />;
+}
+
+function DimensionDiagram({
+  state,
+  setState,
+}: {
+  state: QuoteState;
+  setState: (s: QuoteState) => void;
+}) {
+  const { shape, dimensions } = state;
+  const upd = (patch: Partial<typeof dimensions>) =>
+    setState({ ...state, dimensions: { ...state.dimensions, ...patch } });
+
+  const W = 400, H = 300;
+
+  // ── Sur mesure: plain inputs, no diagram ────────────────────────────────────
+  if (shape === "Sur mesure") {
+    return (
+      <div className="space-y-4 bg-muted/30 rounded-sm p-5 border border-dashed border-border">
+        <p className="text-sm text-muted-foreground text-center">
+          Indiquez vos dimensions approximatives — nos artisans s'adaptent entièrement à votre espace.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {(
+            [
+              { label: "Longueur estimée", key: "length1" as const },
+              { label: "Profondeur estimée", key: "depth" as const },
+            ] as const
+          ).map(({ label, key }) => (
+            <div key={key} className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-widest text-muted-foreground">{label}</Label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min={50}
+                  max={1000}
+                  value={dimensions[key]}
+                  onChange={(e) => upd({ [key]: Number(e.target.value) })}
+                  className="pr-10 rounded-sm"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">cm</span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
+    );
+  }
 
-      <DimensionInput
-        label={needsTwo ? "Longueur principale" : "Longueur totale"}
-        hint={needsTwo ? "pan le plus long" : undefined}
-        value={state.dimensions.length1}
-        onChange={(v) => setState({ ...state, dimensions: { ...state.dimensions, length1: v } })}
-      />
+  // Helper to place an input pill at SVG-coordinate (svgX, svgY), offset by (dx, dy) px
+  const pill = (
+    svgX: number,
+    svgY: number,
+    anchorX: "left" | "center" | "right",
+    anchorY: "top" | "center" | "bottom",
+    input: React.ReactNode
+  ) => {
+    const leftPct = `${(svgX / W) * 100}%`;
+    const topPct = `${(svgY / H) * 100}%`;
+    const tx = anchorX === "left" ? "0" : anchorX === "center" ? "-50%" : "-100%";
+    const ty = anchorY === "top" ? "0" : anchorY === "center" ? "-50%" : "-100%";
+    return (
+      <div
+        className="absolute"
+        style={{ left: leftPct, top: topPct, transform: `translate(${tx}, ${ty})` }}
+      >
+        {input}
+      </div>
+    );
+  };
 
-      {needsTwo && (
-        <DimensionInput
-          label="Longueur secondaire"
-          hint={state.shape === "U" ? "pan en retour" : "pan perpendiculaire"}
-          value={state.dimensions.length2}
-          onChange={(v) => setState({ ...state, dimensions: { ...state.dimensions, length2: v } })}
-        />
-      )}
+  // ── DROIT ───────────────────────────────────────────────────────────────────
+  if (shape === "Droit") {
+    const sx = 80, sy = 85, sw = 215, sh = 95;
+    const dl1y = sy + sh + 30;   // dim line for length1 (below)
+    const ddx  = sx + sw + 30;   // dim line for depth (right)
+    return (
+      <div className="relative w-full" style={{ aspectRatio: "4/3" }}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 w-full h-full overflow-visible">
+          {/* Shape */}
+          <rect x={sx} y={sy} width={sw} height={sh} fill={SHAPE_FILL} stroke={SHAPE_STROKE} strokeWidth={SSW} rx={2} />
 
-      <DimensionInput
-        label="Profondeur d'assise"
-        hint="largeur du coussin de siège"
-        value={state.dimensions.depth}
-        onChange={(v) => setState({ ...state, dimensions: { ...state.dimensions, depth: v } })}
-      />
+          {/* length1 dim line — below */}
+          <line x1={sx}      y1={sy + sh} x2={sx}      y2={dl1y + 6} stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={sx + sw} y1={sy + sh} x2={sx + sw} y2={dl1y + 6} stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={sx}      y1={dl1y}    x2={sx + sw}  y2={dl1y}    stroke={DIM_COLOR} strokeWidth={DSW} />
+          <Tick x1={sx} y1={dl1y - 5} x2={sx} y2={dl1y + 5} />
+          <Tick x1={sx + sw} y1={dl1y - 5} x2={sx + sw} y2={dl1y + 5} />
+
+          {/* depth dim line — right */}
+          <line x1={sx + sw} y1={sy}      x2={ddx + 6} y2={sy}      stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={sx + sw} y1={sy + sh} x2={ddx + 6} y2={sy + sh} stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={ddx}     y1={sy}      x2={ddx}     y2={sy + sh} stroke={DIM_COLOR} strokeWidth={DSW} />
+          <Tick x1={ddx - 5} y1={sy}      x2={ddx + 5} y2={sy} />
+          <Tick x1={ddx - 5} y1={sy + sh} x2={ddx + 5} y2={sy + sh} />
+        </svg>
+        {pill(sx + sw / 2, dl1y + 10, "center", "top", <DiagramInput value={dimensions.length1} onChange={(v) => upd({ length1: v })} />)}
+        {pill(ddx + 10,    sy + sh / 2, "left", "center", <DiagramInput value={dimensions.depth} onChange={(v) => upd({ depth: v })} />)}
+      </div>
+    );
+  }
+
+  // ── L ───────────────────────────────────────────────────────────────────────
+  if (shape === "L") {
+    // Main horizontal arm (top): (mx,my) → (mx+mw, my+mh)
+    // Side vertical arm (bottom-left): (mx,my+mh) → (mx+sw2, my+mh+sh2)
+    // depth = mh = sw2 (same for both arms)
+    const mx = 55, my = 50, mw = 250, mh = 85;
+    const sw2 = 85, sh2 = 120;
+    const pts = [
+      `${mx},${my}`,
+      `${mx + mw},${my}`,
+      `${mx + mw},${my + mh}`,
+      `${mx + sw2},${my + mh}`,
+      `${mx + sw2},${my + mh + sh2}`,
+      `${mx},${my + mh + sh2}`,
+    ].join(" ");
+
+    const dl1y  = my - 26;           // length1 above
+    const ddx   = mx + mw + 28;      // depth right of main arm
+    const dl2x  = mx + sw2 + 28;     // length2 right of side arm section
+
+    return (
+      <div className="relative w-full" style={{ aspectRatio: "4/3" }}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 w-full h-full overflow-visible">
+          <polygon points={pts} fill={SHAPE_FILL} stroke={SHAPE_STROKE} strokeWidth={SSW} />
+
+          {/* length1 — above main arm */}
+          <line x1={mx}      y1={my} x2={mx}      y2={dl1y - 6} stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={mx + mw} y1={my} x2={mx + mw} y2={dl1y - 6} stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={mx} y1={dl1y} x2={mx + mw} y2={dl1y} stroke={DIM_COLOR} strokeWidth={DSW} />
+          <Tick x1={mx} y1={dl1y - 5} x2={mx} y2={dl1y + 5} />
+          <Tick x1={mx + mw} y1={dl1y - 5} x2={mx + mw} y2={dl1y + 5} />
+
+          {/* depth — right of main arm */}
+          <line x1={mx + mw} y1={my}      x2={ddx + 6} y2={my}      stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={mx + mw} y1={my + mh} x2={ddx + 6} y2={my + mh} stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={ddx} y1={my} x2={ddx} y2={my + mh} stroke={DIM_COLOR} strokeWidth={DSW} />
+          <Tick x1={ddx - 5} y1={my}      x2={ddx + 5} y2={my} />
+          <Tick x1={ddx - 5} y1={my + mh} x2={ddx + 5} y2={my + mh} />
+
+          {/* length2 — right of side arm lower section */}
+          <line x1={mx + sw2} y1={my + mh}        x2={dl2x + 6} y2={my + mh}        stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={mx + sw2} y1={my + mh + sh2}  x2={dl2x + 6} y2={my + mh + sh2}  stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={dl2x} y1={my + mh} x2={dl2x} y2={my + mh + sh2} stroke={DIM_COLOR} strokeWidth={DSW} />
+          <Tick x1={dl2x - 5} y1={my + mh}       x2={dl2x + 5} y2={my + mh} />
+          <Tick x1={dl2x - 5} y1={my + mh + sh2} x2={dl2x + 5} y2={my + mh + sh2} />
+        </svg>
+
+        {pill(mx + mw / 2,         dl1y - 12,            "center", "bottom", <DiagramInput value={dimensions.length1} onChange={(v) => upd({ length1: v })} />)}
+        {pill(ddx + 10,            my + mh / 2,          "left",   "center", <DiagramInput value={dimensions.depth}   onChange={(v) => upd({ depth: v })} />)}
+        {pill(dl2x + 10,           my + mh + sh2 / 2,    "left",   "center", <DiagramInput value={dimensions.length2} onChange={(v) => upd({ length2: v })} />)}
+      </div>
+    );
+  }
+
+  // ── U ───────────────────────────────────────────────────────────────────────
+  if (shape === "U") {
+    const armT = 78;  // arm thickness (= depth)
+    const lx = 50, ty = 38, armH = 168, botH = 52;
+    const rx = lx + 220;  // right arm x start
+    const pts = [
+      `${lx},${ty}`,
+      `${lx + armT},${ty}`,
+      `${lx + armT},${ty + armH}`,
+      `${rx},${ty + armH}`,
+      `${rx},${ty}`,
+      `${rx + armT},${ty}`,
+      `${rx + armT},${ty + armH + botH}`,
+      `${lx},${ty + armH + botH}`,
+    ].join(" ");
+
+    const totalW = rx + armT - lx;
+    const dl1y = ty - 26;                   // length1 above
+    const dl2x = rx + armT + 28;            // length2 right of right arm
+    const ddy  = ty + armH + botH + 26;     // depth below, under left arm
+
+    return (
+      <div className="relative w-full" style={{ aspectRatio: "4/3" }}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 w-full h-full overflow-visible">
+          <polygon points={pts} fill={SHAPE_FILL} stroke={SHAPE_STROKE} strokeWidth={SSW} />
+
+          {/* length1 (total width) — above */}
+          <line x1={lx}          y1={ty} x2={lx}          y2={dl1y - 6} stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={rx + armT}   y1={ty} x2={rx + armT}   y2={dl1y - 6} stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={lx} y1={dl1y} x2={rx + armT} y2={dl1y} stroke={DIM_COLOR} strokeWidth={DSW} />
+          <Tick x1={lx}        y1={dl1y - 5} x2={lx}        y2={dl1y + 5} />
+          <Tick x1={rx + armT} y1={dl1y - 5} x2={rx + armT} y2={dl1y + 5} />
+
+          {/* length2 (arm height) — right of right arm */}
+          <line x1={rx + armT} y1={ty}        x2={dl2x + 6} y2={ty}        stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={rx + armT} y1={ty + armH} x2={dl2x + 6} y2={ty + armH} stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={dl2x} y1={ty} x2={dl2x} y2={ty + armH} stroke={DIM_COLOR} strokeWidth={DSW} />
+          <Tick x1={dl2x - 5} y1={ty}        x2={dl2x + 5} y2={ty} />
+          <Tick x1={dl2x - 5} y1={ty + armH} x2={dl2x + 5} y2={ty + armH} />
+
+          {/* depth (arm thickness) — below, under left arm */}
+          <line x1={lx}        y1={ty + armH + botH} x2={lx}        y2={ddy + 6} stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={lx + armT} y1={ty + armH + botH} x2={lx + armT} y2={ddy + 6} stroke={DIM_COLOR} strokeWidth={DSW} strokeDasharray="3 2" />
+          <line x1={lx} y1={ddy} x2={lx + armT} y2={ddy} stroke={DIM_COLOR} strokeWidth={DSW} />
+          <Tick x1={lx}        y1={ddy - 5} x2={lx}        y2={ddy + 5} />
+          <Tick x1={lx + armT} y1={ddy - 5} x2={lx + armT} y2={ddy + 5} />
+        </svg>
+
+        {pill(lx + totalW / 2,    dl1y - 12,          "center", "bottom", <DiagramInput value={dimensions.length1} onChange={(v) => upd({ length1: v })} />)}
+        {pill(dl2x + 10,          ty + armH / 2,      "left",   "center", <DiagramInput value={dimensions.length2} onChange={(v) => upd({ length2: v })} />)}
+        {pill(lx + armT / 2,      ddy + 10,           "center", "top",    <DiagramInput value={dimensions.depth}   onChange={(v) => upd({ depth: v })} />)}
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function StepDimensions({ state, setState }: { state: QuoteState; setState: (s: QuoteState) => void }) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-xl font-serif font-semibold mb-1">Dimensions</h3>
+        <p className="text-sm text-muted-foreground">
+          Cliquez sur une valeur pour la modifier directement sur le plan.
+        </p>
+      </div>
+      <DimensionDiagram state={state} setState={setState} />
+      <p className="text-[11px] text-muted-foreground text-center pt-1">
+        Vue de dessus — toutes les mesures en centimètres
+      </p>
     </div>
   );
 }
