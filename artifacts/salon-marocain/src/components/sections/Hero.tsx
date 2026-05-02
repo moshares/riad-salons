@@ -3,9 +3,9 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 
-// Warm luxury living room interior
+// Moroccan-style riad bohemian salon interior
 const HERO_IMG =
-  "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1920&auto=format&fit=crop&q=80";
+  "https://images.unsplash.com/photo-1583845112203-29329902332e?w=1920&auto=format&fit=crop&q=80";
 
 const HEADLINE = ["Votre", "salon,", "une", "œuvre", "d'art", "sur", "mesure."];
 

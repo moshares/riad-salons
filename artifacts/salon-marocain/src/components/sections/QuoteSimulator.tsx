@@ -32,6 +32,19 @@ const DEFAULT_STATE: QuoteState = {
   extras: { storageBox: false, table: false, delivery: true },
 };
 
+// ─── Shape preview photos (one per configuration) ─────────────────────────────
+
+const SHAPE_IMAGES: Record<ShapeType, string> = {
+  Droit:
+    "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=900&auto=format&fit=crop&q=80",
+  L:
+    "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=900&auto=format&fit=crop&q=80",
+  U:
+    "https://images.unsplash.com/photo-1631679706909-1844bbd07221?w=900&auto=format&fit=crop&q=80",
+  "Sur mesure":
+    "https://images.unsplash.com/photo-1618219944342-824e40a13285?w=900&auto=format&fit=crop&q=80",
+};
+
 // ─── Shape SVGs ───────────────────────────────────────────────────────────────
 
 function ShapeIcon({ shape, selected }: { shape: ShapeType; selected: boolean }) {
@@ -218,19 +231,49 @@ function StepShape({ state, setState }: { state: QuoteState; setState: (s: Quote
     U: `À partir de ${SHAPE_BASE_PRICES.U.toLocaleString()} MAD`,
     "Sur mesure": `À partir de ${SHAPE_BASE_PRICES["Sur mesure"].toLocaleString()} MAD`,
   };
+  const shapeLabels: Record<ShapeType, string> = {
+    Droit: "Canapé droit",
+    L: "Angle en L",
+    U: "Salon en U",
+    "Sur mesure": "Sur mesure",
+  };
   return (
     <div className="space-y-4">
       <div>
         <h3 className="text-xl font-serif font-semibold mb-1">Forme du salon</h3>
         <p className="text-sm text-muted-foreground">Choisissez la configuration qui correspond à votre espace.</p>
       </div>
+
+      {/* Live photo preview — swaps instantly on shape change */}
+      <div className="relative w-full overflow-hidden rounded-sm bg-muted" style={{ aspectRatio: "16/7" }}>
+        <AnimatePresence mode="wait">
+          <motion.img
+            key={state.shape}
+            src={SHAPE_IMAGES[state.shape]}
+            alt={shapeLabels[state.shape]}
+            className="absolute inset-0 w-full h-full object-cover"
+            initial={{ opacity: 0, scale: 1.04 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.97 }}
+            transition={{ duration: 0.38, ease: "easeInOut" }}
+          />
+        </AnimatePresence>
+        {/* Shape label badge */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-4 py-3 pointer-events-none">
+          <span className="text-white text-xs uppercase tracking-[0.2em] font-medium">
+            {shapeLabels[state.shape]}
+          </span>
+        </div>
+      </div>
+
+      {/* Shape selector cards */}
       <div className="grid grid-cols-2 gap-3">
         {shapes.map((shape) => (
           <button
             key={shape}
             type="button"
             onClick={() => setState({ ...state, shape })}
-            className={`flex flex-col items-center justify-center gap-2 p-5 border-2 rounded-sm transition-all duration-200 cursor-pointer ${
+            className={`flex flex-col items-center justify-center gap-2 p-4 border-2 rounded-sm transition-all duration-200 cursor-pointer ${
               state.shape === shape
                 ? "border-primary bg-primary/5"
                 : "border-border hover:border-primary/40"

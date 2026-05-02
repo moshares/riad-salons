@@ -43,14 +43,14 @@ const projects = [
     id: 6,
     category: "En U",
     image:
-      "https://images.unsplash.com/photo-1616047348267-2cf2f24e4ac3?w=900&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1618219944342-824e40a13285?w=900&auto=format&fit=crop&q=80",
     title: "Salon U Riad",
   },
   {
     id: 7,
     category: "Moderne",
     image:
-      "https://images.unsplash.com/photo-1600210492493-0946911123ea?w=900&auto=format&fit=crop&q=80",
+      "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=900&auto=format&fit=crop&q=80",
     title: "Salon L Moderne Clair",
   },
   {
@@ -124,7 +124,7 @@ export function Gallery() {
                 <img
                   src={p.image}
                   alt={p.title}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-108"
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                   loading="lazy"
                 />
                 {/* Gradient overlay — always visible on mobile, hover on desktop */}
