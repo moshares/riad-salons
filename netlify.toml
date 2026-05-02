@@ -1,0 +1,16 @@
+[build]
+  base    = "."
+  command = "pnpm --filter @workspace/salon-marocain run build"
+  publish = "artifacts/salon-marocain/dist/public"
+
+[build.environment]
+  NODE_VERSION = "20"
+  BASE_PATH    = "/"
+  NODE_ENV     = "production"
+  # Tell pnpm to skip the minimum-release-age check (packages are already in lockfile)
+  PNPM_FLAGS   = "--frozen-lockfile"
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
