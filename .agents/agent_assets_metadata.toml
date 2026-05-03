@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "CHyke3NotQpitBTZ6DP-2"
@@ -54,3 +53,63 @@ id = "pPXwEBi7v7T-yDkxn9lNJ"
 uri = "file://artifacts/salon-marocain/public/images/gallery-8.png"
 type = "image"
 title = "Traditional craftsmanship salon"
+
+[[generated]]
+id = "xBHdGirP8S4yxwI5I98Vu"
+uri = "file://artifacts/salon-marocain/public/designs/arabesque.png"
+type = "image"
+title = "moroccan arabesque embroidery pattern"
+
+[[generated]]
+id = "aWvKejpTHasxVLSGFO0Z7"
+uri = "file://artifacts/salon-marocain/public/designs/zellij.png"
+type = "image"
+title = "zellige geometric fabric pattern"
+
+[[generated]]
+id = "sxD269xyRAfNIilOkHrZe"
+uri = "file://artifacts/salon-marocain/public/designs/floral-fassi.png"
+type = "image"
+title = "fassi floral embroidery pattern"
+
+[[generated]]
+id = "pyXFGslLTIZAIkT_Ti-sp"
+uri = "file://artifacts/salon-marocain/public/designs/losanges-berberes.png"
+type = "image"
+title = "berber diamond losange pattern"
+
+[[generated]]
+id = "0yQagQw-5KeeTX8VHxYLF"
+uri = "file://artifacts/salon-marocain/public/designs/sans-motif.png"
+type = "image"
+title = "beige linen fabric swatch"
+
+[[outputs]]
+id = "3XCkUaaHCKsnV9TyBktYp"
+uri = "file://artifacts/salon-marocain/public/designs/sans-motif.png"
+type = "image"
+title = "Sans motif — Tissu uni"
+
+[[outputs]]
+id = "sLXu2Nin0Ohr4hpKi7KCH"
+uri = "file://artifacts/salon-marocain/public/designs/arabesque.png"
+type = "image"
+title = "Arabesque classique"
+
+[[outputs]]
+id = "m2w91MrMG7fzGlPNblkIS"
+uri = "file://artifacts/salon-marocain/public/designs/zellij.png"
+type = "image"
+title = "Géométrique Zellij"
+
+[[outputs]]
+id = "N2EaYTHq8Xugy9ESXhK3y"
+uri = "file://artifacts/salon-marocain/public/designs/floral-fassi.png"
+type = "image"
+title = "Floral Fassi"
+
+[[outputs]]
+id = "5NwjAlOgjm_Gdt0nWwndU"
+uri = "file://artifacts/salon-marocain/public/designs/losanges-berberes.png"
+type = "image"
+title = "Losanges berbères"

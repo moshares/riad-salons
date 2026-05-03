@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
-
+import { lazy, Suspense } from "react";
 
 import { Navbar } from "@/components/layout/Navbar";
 import { Hero } from "@/components/sections/Hero";
@@ -15,6 +15,8 @@ import { QuoteSimulator } from "@/components/sections/QuoteSimulator";
 import { Contact } from "@/components/sections/Contact";
 import { Footer } from "@/components/layout/Footer";
 import { FloatingWhatsApp } from "@/components/layout/FloatingWhatsApp";
+
+const AdminPage = lazy(() => import("@/pages/admin/index"));
 
 const queryClient = new QueryClient();
 
@@ -41,6 +43,15 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/admin">
+        <Suspense fallback={
+          <div className="min-h-screen flex items-center justify-center bg-stone-950">
+            <div className="w-8 h-8 rounded-full border-4 border-amber-700 border-t-transparent animate-spin" />
+          </div>
+        }>
+          <AdminPage />
+        </Suspense>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

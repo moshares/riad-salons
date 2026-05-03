@@ -8,6 +8,10 @@ export interface QuoteState {
     length1: number;
     length2: number;
     depth: number;
+    /** U Caissons only — width of each corner storage box */
+    boxWidth?: number;
+    /** U Caissons only — height (interior clearance) of each corner storage box */
+    boxHeight?: number;
   };
   options: {
     foam: FoamType;
@@ -144,6 +148,9 @@ export function generateWhatsAppMessage(
     `• Longueur principale : ${state.dimensions.length1} cm`,
     ...(needsLength2 ? [`• Longueur secondaire : ${state.dimensions.length2} cm`] : []),
     `• Profondeur d'assise : ${state.dimensions.depth} cm`,
+    ...(state.shape === 'U Caissons' && state.dimensions.boxWidth
+      ? [`• Caissons d'angle — largeur : ${state.dimensions.boxWidth} cm, hauteur : ${state.dimensions.boxHeight ?? 40} cm`]
+      : []),
     `• Mousse : ${state.options.foam}`,
     `• Coussins : ${state.options.cushionsCount}`,
     `• Accoudoirs : ${state.options.armrests ? 'Oui' : 'Non'}`,

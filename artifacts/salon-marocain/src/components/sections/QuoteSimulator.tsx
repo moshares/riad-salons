@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   QuoteState,
@@ -10,6 +10,7 @@ import {
   fmt,
   SHAPE_BASE_PRICES,
 } from "@/lib/pricing";
+import { getFabrics, type DbFabric, getDesigns, type DbDesign } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,13 +21,30 @@ import {
   ChevronLeft,
   Send,
   CheckCircle2,
+  Package,
+  PackageX,
 } from "lucide-react";
 
-const TOTAL_STEPS = 6;
+function estimateFabricAreaM2(state: QuoteState): number {
+  const { length1, length2, depth } = state.dimensions;
+  const L1 = length1 / 100;
+  const L2 = (length2 ?? 0) / 100;
+  const D = depth / 100;
+  const OVERHEAD = 1.4;
+  switch (state.shape) {
+    case "L": return (L1 + L2) * D * OVERHEAD;
+    case "U Ouvert":
+    case "U Caissons": return (L1 + 2 * L2) * D * OVERHEAD;
+    case "Sur mesure": return L1 * D * OVERHEAD * 1.5;
+    default: return L1 * D * OVERHEAD;
+  }
+}
+
+const TOTAL_STEPS = 7;
 
 const DEFAULT_STATE: QuoteState = {
   shape: "U Ouvert",
-  dimensions: { length1: 300, length2: 200, depth: 70 },
+  dimensions: { length1: 300, length2: 200, depth: 70, boxWidth: 60, boxHeight: 40 },
   options: { foam: "Premium", cushionsCount: 6, armrests: true, premiumWood: false },
   fabric: { type: "Standard", color: "" },
   extras: { storageBox: false, table: false, delivery: true },
@@ -309,6 +327,31 @@ function StepShape({ state, setState }: { state: QuoteState; setState: (s: Quote
   );
 }
 
+// ─── Shared number input helper (free typing, clamp on blur) ─────────────────
+
+function useNumberField(
+  value: number,
+  onChange: (v: number) => void,
+  min: number,
+  max: number
+) {
+  const [display, setDisplay] = useState(String(value));
+
+  // Keep display in sync when the external value changes (e.g. step navigation)
+  useEffect(() => {
+    setDisplay(String(value));
+  }, [value]);
+
+  const commit = () => {
+    const n = Number(display);
+    const clamped = isNaN(n) || n < min ? min : n > max ? max : n;
+    onChange(clamped);
+    setDisplay(String(clamped));
+  };
+
+  return { display, setDisplay, commit };
+}
+
 // ─── Inline editable pill for diagram inputs ──────────────────────────────────
 
 function DiagramInput({
@@ -318,18 +361,53 @@ function DiagramInput({
   value: number;
   onChange: (v: number) => void;
 }) {
+  const { display, setDisplay, commit } = useNumberField(value, onChange, 50, 1000);
   return (
     <div className="bg-white border-2 border-primary shadow-md rounded-md px-2 py-1 flex items-center gap-1">
       <input
         type="number"
         min={50}
         max={1000}
-        value={value}
-        onChange={(e) => onChange(Math.max(50, Number(e.target.value)))}
+        value={display}
+        onChange={(e) => setDisplay(e.target.value)}
+        onBlur={commit}
         onClick={(e) => (e.target as HTMLInputElement).select()}
         className="w-14 text-center text-sm font-bold outline-none bg-transparent text-primary"
       />
       <span className="text-[11px] text-muted-foreground font-medium">cm</span>
+    </div>
+  );
+}
+
+// ─── Reusable clamped number input (shadcn Input style) ───────────────────────
+
+function NumberInputField({
+  value,
+  onChange,
+  min,
+  max,
+  className,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  min: number;
+  max: number;
+  className?: string;
+}) {
+  const { display, setDisplay, commit } = useNumberField(value, onChange, min, max);
+  return (
+    <div className="relative">
+      <Input
+        type="number"
+        min={min}
+        max={max}
+        value={display}
+        onChange={(e) => setDisplay(e.target.value)}
+        onBlur={commit}
+        onClick={(e) => (e.target as HTMLInputElement).select()}
+        className={`pr-10 rounded-sm ${className ?? ""}`}
+      />
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">cm</span>
     </div>
   );
 }
@@ -375,17 +453,12 @@ function DimensionDiagram({
           ).map(({ label, key }) => (
             <div key={key} className="space-y-1.5">
               <Label className="text-xs uppercase tracking-widest text-muted-foreground">{label}</Label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  min={50}
-                  max={1000}
-                  value={dimensions[key]}
-                  onChange={(e) => upd({ [key]: Number(e.target.value) })}
-                  className="pr-10 rounded-sm"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">cm</span>
-              </div>
+              <NumberInputField
+                value={dimensions[key]}
+                onChange={(v) => upd({ [key]: v })}
+                min={50}
+                max={1000}
+              />
             </div>
           ))}
         </div>
@@ -580,6 +653,91 @@ function DimensionDiagram({
   return null;
 }
 
+function CaissonDimensions({
+  state,
+  setState,
+}: {
+  state: QuoteState;
+  setState: (s: QuoteState) => void;
+}) {
+  const upd = (patch: Partial<QuoteState["dimensions"]>) =>
+    setState({ ...state, dimensions: { ...state.dimensions, ...patch } });
+
+  const bw = state.dimensions.boxWidth ?? 60;
+  const bh = state.dimensions.boxHeight ?? 40;
+
+  return (
+    <div className="border-2 border-dashed border-primary/30 bg-primary/[0.03] rounded-sm p-4 space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <div className="w-4 h-4 rounded-sm bg-primary/20 border border-primary/40 shrink-0" />
+        <span className="text-xs uppercase tracking-widest font-semibold text-primary">
+          Dimensions des caissons d'angle
+        </span>
+      </div>
+      <p className="text-xs text-muted-foreground -mt-1">
+        Chaque caisson est placé aux deux coins intérieurs du salon en U.
+      </p>
+
+      {/* Mini top-view diagram of one caisson box */}
+      <div className="flex justify-center">
+        <svg viewBox="0 0 160 100" className="w-40 h-24">
+          {/* Box outline */}
+          <rect x="20" y="20" width="120" height="60" rx="2"
+            fill="#f5ede0" stroke="#b45309" strokeWidth="2" />
+          {/* Lid hinge line */}
+          <line x1="20" y1="28" x2="140" y2="28"
+            stroke="#b45309" strokeWidth="1" strokeDasharray="4 3" />
+          {/* Label */}
+          <text x="80" y="55" textAnchor="middle" fontSize="9" fill="#b45309" fontWeight="600">Caisson</text>
+
+          {/* Width arrow */}
+          <line x1="20" y1="10" x2="140" y2="10" stroke="#94a3b8" strokeWidth="1" />
+          <line x1="20" y1="6" x2="20" y2="14" stroke="#94a3b8" strokeWidth="1" />
+          <line x1="140" y1="6" x2="140" y2="14" stroke="#94a3b8" strokeWidth="1" />
+          <text x="80" y="8" textAnchor="middle" fontSize="7" fill="#94a3b8">largeur</text>
+
+          {/* Depth arrow (right side) */}
+          <line x1="150" y1="20" x2="150" y2="80" stroke="#94a3b8" strokeWidth="1" />
+          <line x1="146" y1="20" x2="154" y2="20" stroke="#94a3b8" strokeWidth="1" />
+          <line x1="146" y1="80" x2="154" y2="80" stroke="#94a3b8" strokeWidth="1" />
+          <text x="157" y="52" textAnchor="middle" fontSize="7" fill="#94a3b8"
+            transform="rotate(90, 157, 52)">profondeur</text>
+        </svg>
+      </div>
+
+      {/* Input fields */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs uppercase tracking-widest text-muted-foreground">
+            Largeur du caisson
+          </Label>
+          <NumberInputField
+            value={bw}
+            onChange={(v) => upd({ boxWidth: v })}
+            min={20}
+            max={200}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs uppercase tracking-widest text-muted-foreground">
+            Hauteur intérieure
+          </Label>
+          <NumberInputField
+            value={bh}
+            onChange={(v) => upd({ boxHeight: v })}
+            min={10}
+            max={100}
+          />
+        </div>
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        Ces mesures s'appliquent aux deux caissons d'angle (gauche et droite).
+      </p>
+    </div>
+  );
+}
+
 function StepDimensions({ state, setState }: { state: QuoteState; setState: (s: QuoteState) => void }) {
   return (
     <div className="space-y-4">
@@ -589,10 +747,24 @@ function StepDimensions({ state, setState }: { state: QuoteState; setState: (s: 
           Cliquez sur une valeur pour la modifier directement sur le plan.
         </p>
       </div>
-      <DimensionDiagram state={state} setState={setState} />
-      <p className="text-[11px] text-muted-foreground text-center pt-1">
-        Vue de dessus — toutes les mesures en centimètres
-      </p>
+
+      {/* Main furniture diagram */}
+      <div className="space-y-1">
+        {state.shape === "U Caissons" && (
+          <p className="text-[11px] uppercase tracking-widest text-primary font-semibold mb-1">
+            Dimensions du salon
+          </p>
+        )}
+        <DimensionDiagram state={state} setState={setState} />
+        <p className="text-[11px] text-muted-foreground text-center pt-1">
+          Vue de dessus — toutes les mesures en centimètres
+        </p>
+      </div>
+
+      {/* Caisson-specific dimensions — only for U Caissons */}
+      {state.shape === "U Caissons" && (
+        <CaissonDimensions state={state} setState={setState} />
+      )}
     </div>
   );
 }
@@ -676,12 +848,28 @@ function StepComfort({ state, setState }: { state: QuoteState; setState: (s: Quo
   );
 }
 
-function StepFabric({ state, setState }: { state: QuoteState; setState: (s: QuoteState) => void }) {
-  const fabrics: { value: FabricType; title: string; subtitle: string; badge?: string }[] = [
+function StepFabric({
+  state,
+  setState,
+  dbFabrics,
+  dbFabricsLoading,
+  selectedDbFabric,
+  onDbFabricSelect,
+}: {
+  state: QuoteState;
+  setState: (s: QuoteState) => void;
+  dbFabrics: DbFabric[];
+  dbFabricsLoading: boolean;
+  selectedDbFabric: DbFabric | null;
+  onDbFabricSelect: (f: DbFabric | null) => void;
+}) {
+  const staticFabrics: { value: FabricType; title: string; subtitle: string; badge?: string }[] = [
     { value: "Standard", title: "Tissu Standard", subtitle: "Résistant et facile d'entretien" },
     { value: "Premium", title: "Tissu Premium", subtitle: "Texture raffinée, longue durabilité", badge: "+20%" },
     { value: "Luxe", title: "Velours Luxe", subtitle: "Velours marocain, toucher soyeux", badge: "+40%" },
   ];
+
+  const showDbFabrics = dbFabrics.length > 0;
 
   return (
     <div className="space-y-6">
@@ -690,21 +878,83 @@ function StepFabric({ state, setState }: { state: QuoteState; setState: (s: Quot
         <p className="text-sm text-muted-foreground">Le tissu façonne l'ambiance de votre salon.</p>
       </div>
 
-      <div className="space-y-2">
-        <Label className="text-xs uppercase tracking-widest text-muted-foreground">Gamme</Label>
+      {dbFabricsLoading ? (
         <div className="space-y-2">
-          {fabrics.map((f) => (
-            <OptionCard
-              key={f.value}
-              selected={state.fabric.type === f.value}
-              onClick={() => setState({ ...state, fabric: { ...state.fabric, type: f.value } })}
-              title={f.title}
-              subtitle={f.subtitle}
-              badge={f.badge}
-            />
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-16 bg-muted/40 rounded-sm animate-pulse" />
           ))}
         </div>
-      </div>
+      ) : showDbFabrics ? (
+        <div className="space-y-2">
+          <Label className="text-xs uppercase tracking-widest text-muted-foreground">Sélectionnez un tissu</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {dbFabrics.filter(f => f.available).map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => {
+                  onDbFabricSelect(selectedDbFabric?.id === f.id ? null : f);
+                  setState({ ...state, fabric: { ...state.fabric, color: f.color } });
+                }}
+                className={`relative text-left border-2 rounded-sm overflow-hidden transition-all ${
+                  selectedDbFabric?.id === f.id
+                    ? "border-primary shadow-md ring-1 ring-primary/30"
+                    : "border-border hover:border-muted-foreground"
+                }`}
+              >
+                {/* Image / color swatch */}
+                <div className="h-20 relative">
+                  {f.image_url ? (
+                    <img src={f.image_url} alt={f.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full" style={{ background: f.color_hex }} />
+                  )}
+                  {!f.in_stock && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <span className="text-white text-[10px] font-bold uppercase tracking-wider">Épuisé</span>
+                    </div>
+                  )}
+                  {selectedDbFabric?.id === f.id && (
+                    <div className="absolute top-1.5 right-1.5 bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center">
+                      <CheckCircle2 size={12} />
+                    </div>
+                  )}
+                </div>
+                {/* Info */}
+                <div className="p-2">
+                  <span className="block text-xs font-semibold text-foreground leading-tight">{f.name}</span>
+                  <span className="block text-[10px] text-primary font-medium mt-0.5">
+                    {f.price.toLocaleString("fr-MA")} MAD/{f.unit}
+                  </span>
+                  <span className="flex items-center gap-1 text-[9px] text-muted-foreground mt-0.5">
+                    {f.in_stock ? <Package size={9} className="text-green-600" /> : <PackageX size={9} className="text-red-500" />}
+                    {f.in_stock ? "En stock" : "Épuisé"}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+          {!selectedDbFabric && (
+            <p className="text-[11px] text-muted-foreground text-center pt-1">Sélectionnez un tissu pour voir son impact sur le tarif.</p>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <Label className="text-xs uppercase tracking-widest text-muted-foreground">Gamme</Label>
+          <div className="space-y-2">
+            {staticFabrics.map((f) => (
+              <OptionCard
+                key={f.value}
+                selected={state.fabric.type === f.value}
+                onClick={() => setState({ ...state, fabric: { ...state.fabric, type: f.value } })}
+                title={f.title}
+                subtitle={f.subtitle}
+                badge={f.badge}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-3 pt-2 border-t">
         <Label className="text-xs uppercase tracking-widest text-muted-foreground">Couleur souhaitée</Label>
@@ -736,6 +986,98 @@ function StepFabric({ state, setState }: { state: QuoteState; setState: (s: Quot
           className="rounded-sm text-sm"
         />
       </div>
+    </div>
+  );
+}
+
+function StepDesign({
+  dbDesigns,
+  dbDesignsLoading,
+  selectedDbDesign,
+  onSelect,
+}: {
+  dbDesigns: DbDesign[];
+  dbDesignsLoading: boolean;
+  selectedDbDesign: DbDesign | null;
+  onSelect: (d: DbDesign | null) => void;
+}) {
+  const staticDesigns = [
+    { id: "none",       name: "Sans motif",          description: "Tissu uni, sans décoration supplémentaire", price_surcharge: 0,    image_url: "/designs/sans-motif.png",        available: true, sort_order: 1 },
+    { id: "arabesque",  name: "Arabesque classique",  description: "Entrelacs arabesques brodés à la main",     price_surcharge: 800,  image_url: "/designs/arabesque.png",          available: true, sort_order: 2 },
+    { id: "geometrique",name: "Géométrique Zellij",   description: "Motifs géométriques inspirés du zellige",   price_surcharge: 600,  image_url: "/designs/zellij.png",             available: true, sort_order: 3 },
+    { id: "floral",     name: "Floral Fassi",         description: "Broderies florales traditionnelles de Fès", price_surcharge: 1000, image_url: "/designs/floral-fassi.png",       available: true, sort_order: 4 },
+    { id: "losanges",   name: "Losanges berbères",    description: "Motifs losanges issus du patrimoine berbère",price_surcharge: 500,  image_url: "/designs/losanges-berberes.png",  available: true, sort_order: 5 },
+  ] as DbDesign[];
+
+  const designs = dbDesignsLoading ? [] : (dbDesigns.length > 0 ? dbDesigns : staticDesigns);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-xl font-serif font-semibold mb-1">Choix du motif</h3>
+        <p className="text-sm text-muted-foreground">
+          Sélectionnez le motif que l'artisan brodeur appliquera sur votre tissu.
+        </p>
+      </div>
+
+      {dbDesignsLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-20 bg-muted/40 rounded-sm animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {designs.filter((d) => d.available).map((d) => {
+            const isSelected = selectedDbDesign?.id === d.id;
+            return (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => onSelect(isSelected ? null : d)}
+                className={`w-full flex items-center gap-3 text-left border-2 rounded-sm p-3 transition-all ${
+                  isSelected
+                    ? "border-primary bg-primary/5 shadow-sm"
+                    : "border-border hover:border-muted-foreground"
+                }`}
+              >
+                {/* Image or pattern icon */}
+                <div className="shrink-0 w-16 h-16 rounded-sm overflow-hidden bg-stone-100 flex items-center justify-center">
+                  {d.image_url ? (
+                    <img src={d.image_url} alt={d.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-2xl select-none">
+                      {d.price_surcharge === 0 ? "◻" : d.id === "arabesque" || d.name.toLowerCase().includes("arab") ? "✦" : d.name.toLowerCase().includes("floral") || d.name.toLowerCase().includes("fassi") ? "✿" : "◈"}
+                    </span>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <span className="block font-semibold text-sm text-foreground">{d.name}</span>
+                  {d.description && (
+                    <span className="block text-xs text-muted-foreground mt-0.5 line-clamp-1">{d.description}</span>
+                  )}
+                  <span className={`block text-xs font-semibold mt-1 ${d.price_surcharge > 0 ? "text-primary" : "text-green-600"}`}>
+                    {d.price_surcharge > 0 ? `+${d.price_surcharge.toLocaleString("fr-MA")} MAD` : "Inclus"}
+                  </span>
+                </div>
+
+                {/* Check */}
+                {isSelected && (
+                  <CheckCircle2 size={18} className="shrink-0 text-primary" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {!selectedDbDesign && !dbDesignsLoading && (
+        <p className="text-[11px] text-muted-foreground text-center">
+          Sélectionnez un motif, ou passez à l'étape suivante pour aucun motif.
+        </p>
+      )}
     </div>
   );
 }
@@ -774,15 +1116,29 @@ function StepExtras({ state, setState }: { state: QuoteState; setState: (s: Quot
   );
 }
 
-function StepResult({ state }: { state: QuoteState }) {
+function StepResult({ state, selectedDbFabric, selectedDbDesign }: { state: QuoteState; selectedDbFabric: DbFabric | null; selectedDbDesign: DbDesign | null }) {
   const [lead, setLead] = useState({ name: "", phone: "", city: "" });
   const [sent, setSent] = useState(false);
   const bd = useMemo(() => calculateBreakdown(state), [state]);
 
+  const fabricAreaM2 = useMemo(() => estimateFabricAreaM2(state), [state]);
+  const dbFabricCost = selectedDbFabric
+    ? Math.round(selectedDbFabric.price * fabricAreaM2)
+    : 0;
+  const dbDesignCost = selectedDbDesign?.price_surcharge ?? 0;
+  const fabricDelta = selectedDbFabric ? dbFabricCost - (bd.fabricSurcharge ?? 0) : 0;
+
   const lineItems: { label: string; value: number }[] = [
     { label: `Base — salon ${state.shape}`, value: bd.base },
     ...(bd.foamSurcharge ? [{ label: `Mousse ${state.options.foam}`, value: bd.foamSurcharge }] : []),
-    ...(bd.fabricSurcharge ? [{ label: `Tissu ${state.fabric.type}`, value: bd.fabricSurcharge }] : []),
+    ...(selectedDbFabric
+      ? [{ label: `Tissu — ${selectedDbFabric.name} (≈${fabricAreaM2.toFixed(1)} m²)`, value: dbFabricCost }]
+      : (bd.fabricSurcharge ? [{ label: `Tissu ${state.fabric.type}`, value: bd.fabricSurcharge }] : [])
+    ),
+    ...(selectedDbDesign && selectedDbDesign.price_surcharge > 0
+      ? [{ label: `Motif — ${selectedDbDesign.name}`, value: dbDesignCost }]
+      : []
+    ),
     ...(bd.cushionsSurcharge ? [{ label: `Coussins supplémentaires (×${Math.max(0, state.options.cushionsCount - 4)})`, value: bd.cushionsSurcharge }] : []),
     ...(bd.armrestsSurcharge ? [{ label: "Accoudoirs", value: bd.armrestsSurcharge }] : []),
     ...(bd.woodSurcharge ? [{ label: "Boiserie haute qualité", value: bd.woodSurcharge }] : []),
@@ -790,6 +1146,10 @@ function StepResult({ state }: { state: QuoteState }) {
     ...(bd.tableSurcharge ? [{ label: "Table centrale", value: bd.tableSurcharge }] : []),
     ...(bd.deliverySurcharge ? [{ label: "Livraison & installation", value: bd.deliverySurcharge }] : []),
   ];
+
+  const adjustedTotal = bd.total + fabricDelta + dbDesignCost;
+  const adjustedMin   = bd.min   + fabricDelta + dbDesignCost;
+  const adjustedMax   = bd.max   + fabricDelta + dbDesignCost;
 
   const isValid = lead.name.trim() && lead.phone.trim() && lead.city.trim();
 
@@ -811,7 +1171,7 @@ function StepResult({ state }: { state: QuoteState }) {
       <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-sm p-5 text-center">
         <span className="text-xs uppercase tracking-widest text-amber-700 block mb-1">Budget estimé</span>
         <div className="text-3xl font-bold text-amber-900">
-          {bd.min.toLocaleString()} – {bd.max.toLocaleString()} <span className="text-xl">MAD</span>
+          {adjustedMin.toLocaleString()} – {adjustedMax.toLocaleString()} <span className="text-xl">MAD</span>
         </div>
         <span className="text-[11px] text-amber-700 mt-1 block">±10% selon finitions définitives</span>
       </div>
@@ -831,7 +1191,7 @@ function StepResult({ state }: { state: QuoteState }) {
           ))}
           <div className="flex justify-between text-sm px-4 py-3 bg-primary/5 border-t border-primary/20">
             <span className="font-bold">Total estimé</span>
-            <span className="font-bold text-primary tabular-nums">{fmt(bd.total)}</span>
+            <span className="font-bold text-primary tabular-nums">{fmt(adjustedTotal)}</span>
           </div>
         </div>
       </div>
@@ -901,6 +1261,36 @@ function StepResult({ state }: { state: QuoteState }) {
 export function QuoteSimulator() {
   const [step, setStep] = useState(1);
   const [state, setState] = useState<QuoteState>(DEFAULT_STATE);
+  const [dbFabrics, setDbFabrics] = useState<DbFabric[]>([]);
+  const [dbFabricsLoading, setDbFabricsLoading] = useState(true);
+  const [selectedDbFabric, setSelectedDbFabric] = useState<DbFabric | null>(null);
+  const [dbDesigns, setDbDesigns] = useState<DbDesign[]>([]);
+  const [dbDesignsLoading, setDbDesignsLoading] = useState(true);
+  const [selectedDbDesign, setSelectedDbDesign] = useState<DbDesign | null>(null);
+
+  const loadFabrics = useCallback(async () => {
+    try {
+      const data = await getFabrics();
+      setDbFabrics(data.filter((f) => f.available));
+    } catch {
+      // Silently fall back to static fabric options
+    } finally {
+      setDbFabricsLoading(false);
+    }
+  }, []);
+
+  const loadDesigns = useCallback(async () => {
+    try {
+      const data = await getDesigns();
+      setDbDesigns(data.filter((d) => d.available));
+    } catch {
+      // Silently fall back to static design options
+    } finally {
+      setDbDesignsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadFabrics(); loadDesigns(); }, [loadFabrics, loadDesigns]);
 
   const canAdvance = () => {
     if (step === 2) {
@@ -921,9 +1311,27 @@ export function QuoteSimulator() {
       case 1: return <StepShape state={state} setState={setState} />;
       case 2: return <StepDimensions state={state} setState={setState} />;
       case 3: return <StepComfort state={state} setState={setState} />;
-      case 4: return <StepFabric state={state} setState={setState} />;
-      case 5: return <StepExtras state={state} setState={setState} />;
-      case 6: return <StepResult state={state} />;
+      case 4: return (
+        <StepFabric
+          state={state}
+          setState={setState}
+          dbFabrics={dbFabrics}
+          dbFabricsLoading={dbFabricsLoading}
+          selectedDbFabric={selectedDbFabric}
+          onDbFabricSelect={setSelectedDbFabric}
+        />
+      );
+      case 5: return (
+        <StepDesign
+          dbDesigns={dbDesigns}
+          dbDesignsLoading={dbDesignsLoading}
+          selectedDbDesign={selectedDbDesign}
+          onSelect={setSelectedDbDesign}
+        />
+      );
+      case 6: return <StepExtras state={state} setState={setState} />;
+      case 7: return <StepResult state={state} selectedDbFabric={selectedDbFabric} selectedDbDesign={selectedDbDesign} />;
+      default: return null;
     }
   };
 
